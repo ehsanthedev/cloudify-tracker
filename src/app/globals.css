@@ -1,0 +1,30 @@
+/* @import "tailwindcss"; */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f9f9f9;
+  color: #333;
+  line-height: 1.6;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #4a6fa5;
+  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.25);
+}
