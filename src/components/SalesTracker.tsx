@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, ChangeEvent } from 'react'
+import { useState, useEffect, ChangeEvent, useRef, useCallback } from 'react'
 import { getSales, saveSales, getCreditors, saveCreditors, Sale, Creditor, Purchase } from '../../lib/storage'
-  import Modal, { ModalProps } from '../components/Modal'
+import Modal, { ModalProps } from '../components/Modal'
 
 export default function SalesTracker() {
   const [sales, setSales] = useState<Sale[]>([])
@@ -14,6 +14,7 @@ export default function SalesTracker() {
   const [isCredit, setIsCredit] = useState<boolean>(false)
   const [customerName, setCustomerName] = useState<string>('')
   const [customerPhone, setCustomerPhone] = useState<string>('')
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [modal, setModal] = useState<Omit<ModalProps, 'onClose' | 'onConfirm'> & { 
     isOpen: boolean; 
     onConfirm?: () => void 
@@ -24,10 +25,100 @@ export default function SalesTracker() {
     type: 'alert'
   })
 
+  // Refs for form fields
+  const quantityRef = useRef<HTMLInputElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
+  const customItemRef = useRef<HTMLInputElement>(null)
+  const customerNameRef = useRef<HTMLInputElement>(null)
+  const customerPhoneRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     const savedSales = getSales()
     setSales(savedSales)
   }, [])
+
+  // Create stable callback for validation
+  const validateAndSaveSale = useCallback((): void => {
+    const finalItemName = (type === 'device' || type === 'puff') ? customItem : itemName
+    const saleQuantity = parseFloat(quantity)
+    const saleAmount = parseFloat(amount)
+
+    // Basic validation
+    if (!finalItemName || !quantity || !amount || isNaN(saleQuantity) || isNaN(saleAmount)) {
+      showModal({
+        isOpen: true,
+        title: 'Validation Error',
+        message: 'Please fill all required fields with valid values.',
+        type: 'error'
+      })
+      return
+    }
+
+    // Credit sale validation
+    if (isCredit && (!customerName.trim() || !customerPhone.trim())) {
+      showModal({
+        isOpen: true,
+        title: 'Credit Sale Required',
+        message: 'For credit sales, both customer name and phone number are required.',
+        type: 'error'
+      })
+      return
+    }
+
+    // All validations passed, add or update the sale
+    if (editingIndex !== null) {
+      updateSale()
+    } else {
+      addSale()
+    }
+  }, [type, itemName, customItem, quantity, amount, isCredit, customerName, customerPhone, editingIndex])
+
+  // Handle Enter key press - FIXED VERSION with stable dependencies
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Only handle Enter key
+      if (e.key !== 'Enter') return
+
+      // If modal is open, close it or confirm action
+      if (modal.isOpen) {
+        e.preventDefault()
+        if (modal.type === 'confirm' && modal.onConfirm) {
+          modal.onConfirm()
+        } else {
+          hideModal()
+        }
+        return
+      }
+
+      // Don't trigger if user is typing in input fields
+      const activeElement = document.activeElement
+      if (activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.tagName === 'SELECT'
+      )) {
+        // Check if we're in a form field that should trigger on Enter
+        const isFormField = activeElement.closest('form') || 
+                           activeElement.getAttribute('role') === 'textbox' ||
+                           activeElement.classList.contains('form-field')
+        
+        if (!isFormField) {
+          e.preventDefault()
+          validateAndSaveSale()
+        }
+        return
+      }
+
+      // For other cases, validate and save
+      e.preventDefault()
+      validateAndSaveSale()
+    }
+
+    document.addEventListener('keydown', handleKeyPress)
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [modal.isOpen, modal.type, modal.onConfirm, validateAndSaveSale]) // Fixed dependencies
 
   const showModal = (config: Omit<ModalProps, 'onClose' | 'onConfirm'> & { onConfirm?: () => void }) => {
     setModal({ ...config, isOpen: true })
@@ -41,7 +132,14 @@ export default function SalesTracker() {
     if (newType === 'device' || newType === 'puff') {
       setItemName('')
     } else {
-      setItemName(newType === 'refill' ? 'Pineapple Series' : 'VMate')
+      // Set default item names based on type
+      if (newType === 'refill') {
+        setItemName('Pineapple Series')
+      } else if (newType === 'flavourbottle') {
+        setItemName('Pineapple Series')
+      } else {
+        setItemName('VMate')
+      }
     }
   }
 
@@ -51,32 +149,50 @@ export default function SalesTracker() {
     updateItemField(newType)
   }
 
+  const editSale = (index: number): void => {
+    const sale = sales[index]
+    setType(sale.type)
+    
+    // Set item name based on sale type
+    if (sale.type === 'device' || sale.type === 'puff') {
+      setCustomItem(sale.itemName)
+      setItemName('')
+    } else {
+      setItemName(sale.itemName)
+      setCustomItem('')
+    }
+    
+    setQuantity(sale.quantity.toString())
+    setAmount(sale.amount.toString())
+    setPaymentMethod(sale.paymentMethod)
+    setIsCredit(sale.isCredit)
+    setCustomerName(sale.customerName)
+    setCustomerPhone(sale.customerPhone)
+    setEditingIndex(index)
+  }
+
+  const cancelEdit = (): void => {
+    setEditingIndex(null)
+    resetForm()
+  }
+
+  const resetForm = (): void => {
+    setType('refill')
+    setItemName('Pineapple Series')
+    setCustomItem('')
+    setQuantity('')
+    setAmount('')
+    setPaymentMethod('cash')
+    setIsCredit(false)
+    setCustomerName('')
+    setCustomerPhone('')
+    setEditingIndex(null)
+  }
+
   const addSale = (): void => {
     const finalItemName = (type === 'device' || type === 'puff') ? customItem : itemName
     const saleQuantity = parseFloat(quantity)
     const saleAmount = parseFloat(amount)
-
-    // Basic validation
-    if (!finalItemName || isNaN(saleQuantity) || isNaN(saleAmount)) {
-      showModal({
-        title: 'Validation Error',
-        message: 'Please fill all required fields with valid values.',
-        type: 'error',
-        isOpen: false
-      })
-      return
-    }
-
-    // Credit sale validation
-    if (isCredit && (!customerName.trim() || !customerPhone.trim())) {
-      showModal({
-        title: 'Credit Sale Required',
-        message: 'For credit sales, both customer name and phone number are required.',
-        type: 'error',
-        isOpen: false
-      })
-      return
-    }
 
     const newSale: Sale = {
       type,
@@ -88,97 +204,227 @@ export default function SalesTracker() {
       isCredit,
       customerName: isCredit ? customerName.trim() : '',
       customerPhone: isCredit ? customerPhone.trim() : '',
-      isPaid: !isCredit // Cash sales are immediately paid
+      isPaid: !isCredit
     }
 
     // If it's a credit sale, add to creditors
     if (isCredit && customerName && customerPhone) {
-      const creditors: Creditor[] = getCreditors()
-      const existingCreditor = creditors.find(
-        (c: Creditor) => c.phone === customerPhone.trim()
-      )
-
-      const newPurchase: Purchase = {
-        itemName: finalItemName,
-        quantity: saleQuantity,
-        amount: saleAmount,
-        date: new Date().toISOString()
-      }
-
-      if (existingCreditor) {
-        existingCreditor.amountOwed += saleAmount
-        existingCreditor.purchases.push(newPurchase)
-      } else {
-        creditors.push({
-          name: customerName.trim(),
-          phone: customerPhone.trim(),
-          amountOwed: saleAmount,
-          purchases: [newPurchase]
-        })
-      }
-      saveCreditors(creditors)
+      addToCreditors(finalItemName, saleQuantity, saleAmount, customerName.trim(), customerPhone.trim())
     }
 
     const updatedSales = [...sales, newSale]
     setSales(updatedSales)
     saveSales(updatedSales)
 
-    // Reset form
-    setQuantity('')
-    setAmount('')
-    setCustomItem('')
-    setIsCredit(false)
-    setCustomerName('')
-    setCustomerPhone('')
+    resetForm()
+    
     showModal({
+      isOpen: true,
       title: 'Success!',
       message: 'Sale has been added successfully.',
-      type: 'success',
-      isOpen: false
+      type: 'success'
     })
   }
 
-  const deleteSale = (index: number): void => {
+  const updateSale = (): void => {
+    if (editingIndex === null) return
+
+    const originalSale = sales[editingIndex]
+    const finalItemName = (type === 'device' || type === 'puff') ? customItem : itemName
+    const saleQuantity = parseFloat(quantity)
+    const saleAmount = parseFloat(amount)
+
+    const updatedSale: Sale = {
+      type,
+      itemName: finalItemName,
+      quantity: saleQuantity,
+      amount: saleAmount,
+      paymentMethod,
+      timestamp: originalSale.timestamp, // Keep original timestamp
+      isCredit,
+      customerName: isCredit ? customerName.trim() : '',
+      customerPhone: isCredit ? customerPhone.trim() : '',
+      isPaid: !isCredit
+    }
+
+    // Handle creditor updates
+    handleCreditorUpdate(originalSale, updatedSale, finalItemName, saleQuantity, saleAmount)
+
+    const updatedSales = [...sales]
+    updatedSales[editingIndex] = updatedSale
+    setSales(updatedSales)
+    saveSales(updatedSales)
+
+    resetForm()
+    
     showModal({
-      title: 'Delete Sale',
-      message: 'Are you sure you want to delete this sale?',
-      type: 'confirm',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      isOpen: false,
-      onConfirm: () => {
-        const updatedSales = sales.filter((_, i) => i !== index)
-        setSales(updatedSales)
-        saveSales(updatedSales)
-        showModal({
-          title: 'Success!',
-          message: 'Sale has been deleted successfully.',
-          type: 'success',
-          isOpen: false
-        })
-      }
+      isOpen: true,
+      title: 'Success!',
+      message: 'Sale has been updated successfully.',
+      type: 'success'
     })
   }
 
-  const deleteAllSales = (): void => {
-    showModal({
-      title: 'Delete All Sales',
-      message: 'Are you sure you want to delete all sales? This action cannot be undone.',
-      type: 'confirm',
-      confirmText: 'Delete All',
-      cancelText: 'Cancel',
-      isOpen: false,
-      onConfirm: () => {
-        setSales([])
-        saveSales([])
-        showModal({
-          title: 'Success!',
-          message: 'All sales have been deleted successfully.',
-          type: 'success',
-          isOpen: false
-        })
+  const addToCreditors = (itemName: string, quantity: number, amount: number, name: string, phone: string) => {
+    const creditors: Creditor[] = getCreditors()
+    const existingCreditor = creditors.find((c: Creditor) => c.phone === phone)
+
+    const newPurchase: Purchase = {
+      itemName,
+      quantity,
+      amount,
+      date: new Date().toISOString()
+    }
+
+    if (existingCreditor) {
+      existingCreditor.amountOwed += amount
+      existingCreditor.purchases.push(newPurchase)
+    } else {
+      creditors.push({
+        name,
+        phone,
+        amountOwed: amount,
+        purchases: [newPurchase]
+      })
+    }
+    saveCreditors(creditors)
+  }
+
+  const removeFromCreditors = (originalSale: Sale) => {
+    if (!originalSale.isCredit || !originalSale.customerPhone) return
+
+    const creditors: Creditor[] = getCreditors()
+    const creditorIndex = creditors.findIndex((c: Creditor) => c.phone === originalSale.customerPhone)
+    
+    if (creditorIndex !== -1) {
+      const creditor = creditors[creditorIndex]
+      creditor.amountOwed -= originalSale.amount
+      
+      // Remove the purchase (simplified - in real app you might want more specific matching)
+      creditor.purchases = creditor.purchases.filter(p => 
+        !(p.itemName === originalSale.itemName && 
+          p.quantity === originalSale.quantity && 
+          Math.abs(p.amount - originalSale.amount) < 0.01)
+      )
+      
+      // Remove creditor if no amount owed and no purchases
+      if (creditor.amountOwed <= 0 && creditor.purchases.length === 0) {
+        creditors.splice(creditorIndex, 1)
       }
-    })
+      
+      saveCreditors(creditors)
+    }
+  }
+
+  const handleCreditorUpdate = (originalSale: Sale, updatedSale: Sale, itemName: string, quantity: number, amount: number) => {
+    // Case 1: Original was credit, updated is credit (same or different customer)
+    if (originalSale.isCredit && updatedSale.isCredit) {
+      // If customer details changed, remove from old creditor and add to new
+      if (originalSale.customerPhone !== updatedSale.customerPhone) {
+        removeFromCreditors(originalSale)
+        addToCreditors(itemName, quantity, amount, updatedSale.customerName, updatedSale.customerPhone)
+      } else {
+        // Same customer, update creditor amount
+        const creditors: Creditor[] = getCreditors()
+        const creditor = creditors.find((c: Creditor) => c.phone === originalSale.customerPhone)
+        if (creditor) {
+          creditor.amountOwed = creditor.amountOwed - originalSale.amount + amount
+          saveCreditors(creditors)
+        }
+      }
+    }
+    // Case 2: Original was credit, updated is cash - remove from creditors
+    else if (originalSale.isCredit && !updatedSale.isCredit) {
+      removeFromCreditors(originalSale)
+    }
+    // Case 3: Original was cash, updated is credit - add to creditors
+    else if (!originalSale.isCredit && updatedSale.isCredit) {
+      addToCreditors(itemName, quantity, amount, updatedSale.customerName, updatedSale.customerPhone)
+    }
+    // Case 4: Both cash - no creditor changes needed
+  }
+
+  // In your SalesTracker component, replace the delete functions:
+
+const deleteSale = (index: number): void => {
+  const sale = sales[index]
+  
+  showModal({
+    isOpen: true,
+    title: 'Delete Sale',
+    message: 'Are you sure you want to delete this sale?',
+    type: 'confirm',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      // Use soft delete instead of removing from array
+      const updatedSales = sales.map((s, i) => 
+        i === index 
+          ? { ...s, deleted: true, deletedAt: new Date().toISOString() }
+          : s
+      );
+      setSales(updatedSales.filter(s => !s.deleted)); // Remove from view
+      saveSales(updatedSales); // Save with deleted flag
+      
+      showModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'Sale has been deleted successfully.',
+        type: 'success'
+      })
+    }
+  })
+}
+
+const deleteAllSales = (): void => {
+  showModal({
+    isOpen: true,
+    title: 'Delete All Sales',
+    message: 'Are you sure you want to delete all sales? This action cannot be undone.',
+    type: 'confirm',
+    confirmText: 'Delete All',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      // Use soft delete for all sales
+      const updatedSales = sales.map(sale => 
+        ({ ...sale, deleted: true, deletedAt: new Date().toISOString() })
+      );
+      setSales([]);
+      saveSales(updatedSales);
+      showModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'All sales have been deleted successfully.',
+        type: 'success'
+      })
+    }
+  })
+}
+
+
+  // Format sale type for display
+  const formatSaleType = (type: string): string => {
+    const typeMap: { [key: string]: string } = {
+      refill: 'Refill',
+      coil: 'Coil',
+      device: 'Device',
+      puff: 'Puff',
+      flavourbottle: 'Flavour Bottle'
+    }
+    return typeMap[type] || type
+  }
+
+  // Get border color based on sale type
+  const getBorderColor = (saleType: string): string => {
+    switch (saleType) {
+      case 'refill':
+      case 'flavourbottle':
+        return '#ff7e5f' // Same color for refill and flavour bottle
+      case 'puff':
+        return '#9c27b0'
+      default:
+        return '#4a6fa5'
+    }
   }
 
   return (
@@ -204,6 +450,7 @@ export default function SalesTracker() {
             <option value="coil">Coil</option>
             <option value="device">Device</option>
             <option value="puff">Puff</option>
+            <option value="flavourbottle">Flavour Bottle</option>
           </select>
         </div>
 
@@ -211,6 +458,7 @@ export default function SalesTracker() {
           <label style={labelStyle}>Item Name</label>
           {(type === 'device' || type === 'puff') ? (
             <input
+              ref={customItemRef}
               type="text"
               value={customItem}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomItem(e.target.value)}
@@ -223,7 +471,7 @@ export default function SalesTracker() {
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setItemName(e.target.value)}
               style={inputStyle}
             >
-              {type === 'refill' ? (
+              {type === 'refill' || type === 'flavourbottle' ? (
                 <>
                   <option value="Pineapple Series">Pineapple Series</option>
                   <option value="UK Salt">UK Salt</option>
@@ -240,6 +488,7 @@ export default function SalesTracker() {
                   <option value="Caliburn g">Caliburn g</option>
                   <option value="Sonder">Sonder</option>
                   <option value="Oneo">Oneo</option>
+                  <option value="Nexlim">Nexlim</option>
                 </>
               )}
             </select>
@@ -249,6 +498,7 @@ export default function SalesTracker() {
         <div style={formGroupStyle}>
           <label style={labelStyle}>Quantity</label>
           <input
+            ref={quantityRef}
             type="number"
             step="0.1"
             value={quantity}
@@ -262,6 +512,7 @@ export default function SalesTracker() {
         <div style={formGroupStyle}>
           <label style={labelStyle}>Amount (PKR)</label>
           <input
+            ref={amountRef}
             type="number"
             step="0.01"
             value={amount}
@@ -302,6 +553,7 @@ export default function SalesTracker() {
             <div style={formGroupStyle}>
               <label style={labelStyle}>Customer Name *</label>
               <input
+                ref={customerNameRef}
                 type="text"
                 value={customerName}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomerName(e.target.value)}
@@ -313,6 +565,7 @@ export default function SalesTracker() {
             <div style={formGroupStyle}>
               <label style={labelStyle}>Customer Phone *</label>
               <input
+                ref={customerPhoneRef}
                 type="text"
                 value={customerPhone}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomerPhone(e.target.value)}
@@ -326,9 +579,14 @@ export default function SalesTracker() {
       </div>
 
       <div style={actionButtonsStyle}>
-        <button onClick={addSale} style={successButtonStyle}>
-          Add New Sale
+        <button onClick={validateAndSaveSale} style={editingIndex !== null ? warningButtonStyle : successButtonStyle}>
+          {editingIndex !== null ? 'Update Sale (or Press Enter)' : 'Add New Sale (or Press Enter)'}
         </button>
+        {editingIndex !== null && (
+          <button onClick={cancelEdit} style={secondaryButtonStyle}>
+            Cancel Edit
+          </button>
+        )}
         <button onClick={deleteAllSales} style={dangerButtonStyle}>
           Delete All Sales
         </button>
@@ -344,12 +602,9 @@ export default function SalesTracker() {
           sales.map((sale, index) => (
             <div key={index} style={{
               ...cardStyle,
-              borderTop: `4px solid ${
-                sale.type === 'refill' ? '#ff7e5f' : 
-                sale.type === 'puff' ? '#9c27b0' : '#4a6fa5'
-              }`
+              borderTop: `4px solid ${getBorderColor(sale.type)}`
             }}>
-              <h3 style={cardTitleStyle}>{sale.type.charAt(0).toUpperCase() + sale.type.slice(1)} Sale</h3>
+              <h3 style={cardTitleStyle}>{formatSaleType(sale.type)} Sale</h3>
               {sale.isCredit && <div style={creditBadgeStyle}>CREDIT</div>}
               <p><span style={labelTextStyle}>Item:</span> {sale.itemName}</p>
               <p><span style={labelTextStyle}>Quantity:</span> {sale.quantity}</p>
@@ -364,97 +619,29 @@ export default function SalesTracker() {
               <p style={timestampStyle}>
                 Added: {new Date(sale.timestamp).toLocaleString()}
               </p>
-              <button 
-                onClick={() => deleteSale(index)}
-                style={deleteButtonStyle}
-              >
-                Delete
-              </button>
+              <div style={cardActionsStyle}>
+                <button 
+                  onClick={() => editSale(index)}
+                  style={editButtonStyle}
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => deleteSale(index)}
+                  style={deleteButtonStyle}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))
         )}
       </div>
-
-      {/* Responsive CSS */}
-      <style jsx global>{`
-        /* Mobile First - Default styles */
-        .responsive-form-grid {
-          grid-template-columns: 1fr !important;
-        }
-        
-        .responsive-action-buttons {
-          flex-direction: column !important;
-        }
-        
-        .responsive-cards-container {
-          grid-template-columns: 1fr !important;
-        }
-
-        /* Small phones (320px - 480px) */
-        @media (min-width: 320px) {
-          .responsive-form-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-
-        /* Large phones (481px - 767px) */
-        @media (min-width: 481px) {
-          .responsive-form-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-          .responsive-cards-container {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-        }
-
-        /* Tablets (768px - 1023px) */
-        @media (min-width: 768px) {
-          .responsive-form-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-          .responsive-action-buttons {
-            flex-direction: row !important;
-          }
-          .responsive-cards-container {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-        }
-
-        /* Small desktops (1024px - 1279px) */
-        @media (min-width: 1024px) {
-          .responsive-form-grid {
-            grid-template-columns: repeat(4, 1fr) !important;
-          }
-          .responsive-cards-container {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-        }
-
-        /* Large desktops (1280px+) */
-        @media (min-width: 1280px) {
-          .responsive-form-grid {
-            grid-template-columns: repeat(4, 1fr) !important;
-          }
-          .responsive-cards-container {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-        }
-
-        /* Extra large screens (1440px+) */
-        @media (min-width: 1440px) {
-          .responsive-form-grid {
-            grid-template-columns: repeat(4, 1fr) !important;
-          }
-          .responsive-cards-container {
-            grid-template-columns: repeat(4, 1fr) !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }
 
-// Converted Styles - Keeping exact same styling and spacing
+// Keep all your existing styles the same...
 const containerStyle: React.CSSProperties = {
   padding: '1rem',
   maxWidth: '1400px',
@@ -520,6 +707,28 @@ const successButtonStyle: React.CSSProperties = {
   flex: 1
 }
 
+const warningButtonStyle: React.CSSProperties = {
+  padding: '12px 24px',
+  backgroundColor: '#ffc107',
+  color: 'black',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  flex: 1
+}
+
+const secondaryButtonStyle: React.CSSProperties = {
+  padding: '12px 24px',
+  backgroundColor: '#6c757d',
+  color: 'white',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontSize: '1rem',
+  flex: 1
+}
+
 const dangerButtonStyle: React.CSSProperties = {
   padding: '12px 24px',
   backgroundColor: '#dc3545',
@@ -576,15 +785,29 @@ const timestampStyle: React.CSSProperties = {
   borderTop: '1px dashed #ddd'
 }
 
+const cardActionsStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  marginTop: '15px',
+  justifyContent: 'flex-end'
+}
+
+const editButtonStyle: React.CSSProperties = {
+  padding: '6px 12px',
+  fontSize: '0.85rem',
+  backgroundColor: 'rgba(255, 193, 7, 0.1)',
+  color: '#856404',
+  border: '1px solid #ffc107',
+  borderRadius: '4px',
+  cursor: 'pointer'
+}
+
 const deleteButtonStyle: React.CSSProperties = {
-  position: 'absolute',
-  bottom: '15px',
-  right: '15px',
-  padding: '6px 10px',
+  padding: '6px 12px',
   fontSize: '0.85rem',
   backgroundColor: 'rgba(220, 53, 69, 0.1)',
   color: '#dc3545',
-  border: 'none',
+  border: '1px solid #dc3545',
   borderRadius: '4px',
   cursor: 'pointer'
 }
@@ -597,95 +820,3 @@ const emptyStateStyle: React.CSSProperties = {
   borderRadius: '10px',
   gridColumn: '1 / -1'
 }
-
-// Add responsive classes with JavaScript
-if (typeof window !== 'undefined') {
-  const style = document.createElement('style')
-  style.textContent = `
-    /* Mobile First - Default styles */
-    .responsive-form-grid {
-      grid-template-columns: 1fr !important;
-    }
-    
-    .responsive-action-buttons {
-      flex-direction: column !important;
-    }
-    
-    .responsive-cards-container {
-      grid-template-columns: 1fr !important;
-    }
-
-    /* Small phones (320px - 480px) */
-    @media (min-width: 320px) {
-      .responsive-form-grid {
-        grid-template-columns: 1fr !important;
-      }
-    }
-
-    /* Large phones (481px - 767px) */
-    @media (min-width: 481px) {
-      .responsive-form-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-      .responsive-cards-container {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-    }
-
-    /* Tablets (768px - 1023px) */
-    @media (min-width: 768px) {
-      .responsive-form-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-      }
-      .responsive-action-buttons {
-        flex-direction: row !important;
-      }
-      .responsive-cards-container {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-    }
-
-    /* Small desktops (1024px - 1279px) */
-    @media (min-width: 1024px) {
-      .responsive-form-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-      }
-      .responsive-cards-container {
-        grid-template-columns: repeat(3, 1fr) !important;
-      }
-    }
-
-    /* Large desktops (1280px+) */
-    @media (min-width: 1280px) {
-      .responsive-form-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-      }
-      .responsive-cards-container {
-        grid-template-columns: repeat(3, 1fr) !important;
-      }
-    }
-
-    /* Extra large screens (1440px+) */
-    @media (min-width: 1440px) {
-      .responsive-form-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-      }
-      .responsive-cards-container {
-        grid-template-columns: repeat(4, 1fr) !important;
-      }
-    }
-  `
-  document.head.appendChild(style)
-  
-  // Add classes to elements after component mounts
-  setTimeout(() => {
-    const formGrid = document.querySelector('[style*="gridTemplateColumns: repeat(auto-fit, minmax(250px, 1fr))"]')
-    const actionButtons = document.querySelector('[style*="flex-direction: column"]')
-    const cardsContainer = document.querySelector('[style*="gridTemplateColumns: repeat(auto-fit, minmax(300px, 1fr))"]')
-    
-    if (formGrid) formGrid.classList.add('responsive-form-grid')
-    if (actionButtons) actionButtons.classList.add('responsive-action-buttons')
-    if (cardsContainer) cardsContainer.classList.add('responsive-cards-container')
-    }, 100)
-  }
-

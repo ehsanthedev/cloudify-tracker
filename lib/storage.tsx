@@ -12,6 +12,8 @@ export interface Sale {
   customerName: string;
   customerPhone: string;
   isPaid?: boolean;
+  deleted?: boolean; // Add this field to track deletions
+  deletedAt?: string; // Add this field to track when it was deleted
 }
 
 export interface Expense {
@@ -19,6 +21,8 @@ export interface Expense {
   amount: number;
   category: string;
   timestamp: string;
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface Purchase {
@@ -33,6 +37,8 @@ export interface Creditor {
   phone: string;
   amountOwed: number;
   purchases: Purchase[];
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface Payment {
@@ -41,6 +47,8 @@ export interface Payment {
   amount: number;
   timestamp: string;
   originalSaleAmount?: number;
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 // Utility functions for localStorage management
@@ -61,6 +69,42 @@ export const saveSales = (sales: Sale[]): void => {
     localStorage.setItem('cloudify-sales', JSON.stringify(sales));
   } catch (error) {
     console.error('Error saving sales to localStorage:', error);
+  }
+};
+
+// New function to get all sales including deleted ones
+export const getAllSales = (): Sale[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const sales = localStorage.getItem('cloudify-sales');
+    return sales ? JSON.parse(sales) : [];
+  } catch (error) {
+    console.error('Error parsing sales from localStorage:', error);
+    return [];
+  }
+};
+
+// New function to mark a sale as deleted
+export const softDeleteSale = (timestamp: string): void => {
+  const sales = getAllSales();
+  const updatedSales = sales.map(sale => 
+    sale.timestamp === timestamp 
+      ? { ...sale, deleted: true, deletedAt: new Date().toISOString() }
+      : sale
+  );
+  saveSales(updatedSales);
+};
+
+// New function to permanently delete all data
+export const deleteAllReportsData = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-sales');
+    localStorage.removeItem('cloudify-expenses');
+    localStorage.removeItem('cloudify-creditors');
+    localStorage.removeItem('cloudify-payments');
+  } catch (error) {
+    console.error('Error clearing reports data from localStorage:', error);
   }
 };
 
@@ -143,7 +187,7 @@ export const getAllData = (): {
   payments: Payment[];
 } => {
   return {
-    sales: getSales(),
+    sales: getAllSales(), // Use getAllSales to include deleted entries
     expenses: getExpenses(),
     creditors: getCreditors(),
     payments: getPayments(),
