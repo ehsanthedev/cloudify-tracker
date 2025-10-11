@@ -44,7 +44,7 @@ export default function ReportsPage() {
   }
 
   const authenticate = (): void => {
-    if (password === 'admin123') {
+    if (password === 'password-not-allowed') {
       setIsAuthenticated(true)
     } else {
       showModal({
