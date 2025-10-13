@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getAllData, deleteAllReportsData, Sale, Expense, Creditor, Payment } from '../../../../lib/storage'
+import { getAllData, clearAllData, Sale, Expense, Creditor, Payment } from '../../../../lib/storage'
 import Link from 'next/link'
 import Modal, { ModalProps } from '../../../components/Modal'
 
@@ -44,7 +44,8 @@ export default function ReportsPage() {
   }
 
   const authenticate = (): void => {
-    if (password === 'password-not-allowed') {
+    // Use the same password as your TotalsPage for consistency
+    if (password === 'Ehsan@7890') {
       setIsAuthenticated(true)
     } else {
       showModal({
@@ -65,7 +66,7 @@ export default function ReportsPage() {
       confirmText: 'Delete All',
       cancelText: 'Cancel',
       onConfirm: () => {
-        deleteAllReportsData()
+        clearAllData() // Changed from deleteAllReportsData to clearAllData
         setData({
           sales: [],
           expenses: [],
@@ -327,6 +328,8 @@ export default function ReportsPage() {
     </div>
   )
 }
+
+// ... (all your existing styles remain exactly the same)
 
 // Styles (keep all your existing styles the same)
 const authContainerStyles: React.CSSProperties = {

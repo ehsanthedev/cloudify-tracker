@@ -1,12 +1,11 @@
 'use client'
 import { useState, useEffect, ChangeEvent } from 'react'
-import { getCreditors, saveCreditors, getPayments, savePayments, getSales, saveSales, Creditor, Payment, Sale } from '../../../lib/storage'
+import { getCreditors, saveCreditors, getPayments, savePayments, getAllSales, saveSales, Creditor, Payment, Sale } from '../../../lib/storage'
 import Modal, { ModalProps } from '../../components/Modal'
 
 export default function CreditorsPage() {
     const [creditors, setCreditors] = useState<Creditor[]>([])
     const [payments, setPayments] = useState<Payment[]>([])
-    const [sales, setSales] = useState<Sale[]>([])
     const [paymentAmount, setPaymentAmount] = useState<string>('')
     const [selectedCreditor, setSelectedCreditor] = useState<number | null>(null)
     const [modal, setModal] = useState<Omit<ModalProps, 'onClose' | 'onConfirm'> & { 
@@ -22,7 +21,6 @@ export default function CreditorsPage() {
     useEffect(() => {
         setCreditors(getCreditors())
         setPayments(getPayments())
-        setSales(getSales())
     }, [])
 
     const showModal = (config: Omit<ModalProps, 'onClose' | 'onConfirm'> & { onConfirm?: () => void }) => {
@@ -86,11 +84,13 @@ export default function CreditorsPage() {
         setPayments(updatedPayments)
         savePayments(updatedPayments)
 
-        // Update sales to mark as paid if applicable
-        const updatedSales = [...sales]
+        // Update sales to mark as paid if applicable - using getAllSales
+        const allSales = getAllSales()
+        const updatedSales = [...allSales]
         const creditSales = updatedSales.filter(sale => 
             sale.isCredit && 
-            sale.customerPhone === creditor.phone
+            sale.customerPhone === creditor.phone &&
+            !sale.deleted // Only update non-deleted sales
         )
         
         // If this payment covers the full amount of any credit sale, mark it as paid
@@ -102,7 +102,6 @@ export default function CreditorsPage() {
             }
         })
 
-        setSales(updatedSales)
         saveSales(updatedSales)
 
         setPaymentAmount('')

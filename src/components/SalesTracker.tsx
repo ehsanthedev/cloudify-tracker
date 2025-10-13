@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, ChangeEvent, useRef, useCallback } from 'react'
-import { getSales, saveSales, getCreditors, saveCreditors, Sale, Creditor, Purchase } from '../../lib/storage'
+import { getActiveSales, saveSales, getCreditors, saveCreditors, Sale, Creditor, Purchase } from '../../lib/storage'
 import Modal, { ModalProps } from '../components/Modal'
 
 export default function SalesTracker() {
@@ -33,9 +33,15 @@ export default function SalesTracker() {
   const customerPhoneRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const savedSales = getSales()
-    setSales(savedSales)
+    const activeSales = getActiveSales()
+    setSales(activeSales)
   }, [])
+
+  // Phone number validation
+  const isValidPhoneNumber = (phone: string): boolean => {
+    const phoneRegex = /^\d{11}$/
+    return phoneRegex.test(phone.replace(/\D/g, ''))
+  }
 
   // Create stable callback for validation
   const validateAndSaveSale = useCallback((): void => {
@@ -55,14 +61,28 @@ export default function SalesTracker() {
     }
 
     // Credit sale validation
-    if (isCredit && (!customerName.trim() || !customerPhone.trim())) {
-      showModal({
-        isOpen: true,
-        title: 'Credit Sale Required',
-        message: 'For credit sales, both customer name and phone number are required.',
-        type: 'error'
-      })
-      return
+    if (isCredit) {
+      // Check if customer name and phone are provided
+      if (!customerName.trim() || !customerPhone.trim()) {
+        showModal({
+          isOpen: true,
+          title: 'Credit Sale Required',
+          message: 'For credit sales, both customer name and phone number are required.',
+          type: 'error'
+        })
+        return
+      }
+
+      // Validate phone number format (exactly 11 digits)
+      if (!isValidPhoneNumber(customerPhone)) {
+        showModal({
+          isOpen: true,
+          title: 'Invalid Phone Number',
+          message: 'Phone number must be exactly 11 digits (without any spaces or special characters).',
+          type: 'error'
+        })
+        return
+      }
     }
 
     // All validations passed, add or update the sale
@@ -72,6 +92,14 @@ export default function SalesTracker() {
       addSale()
     }
   }, [type, itemName, customItem, quantity, amount, isCredit, customerName, customerPhone, editingIndex])
+
+  // Handle phone number input with validation
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const value = e.target.value.replace(/\D/g, '') // Remove non-digits
+    if (value.length <= 11) {
+      setCustomerPhone(value)
+    }
+  }
 
   // Handle Enter key press - FIXED VERSION with stable dependencies
   useEffect(() => {
@@ -344,63 +372,60 @@ export default function SalesTracker() {
     // Case 4: Both cash - no creditor changes needed
   }
 
-  // In your SalesTracker component, replace the delete functions:
+  const deleteSale = (index: number): void => {
+    const sale = sales[index]
+    
+    showModal({
+      isOpen: true,
+      title: 'Delete Sale',
+      message: 'Are you sure you want to delete this sale?',
+      type: 'confirm',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        // Use soft delete instead of removing from array
+        const updatedSales = sales.map((s, i) => 
+          i === index 
+            ? { ...s, deleted: true, deletedAt: new Date().toISOString() }
+            : s
+        );
+        setSales(updatedSales.filter(s => !s.deleted)); // Remove from view
+        saveSales(updatedSales); // Save with deleted flag
+        
+        showModal({
+          isOpen: true,
+          title: 'Success!',
+          message: 'Sale has been deleted successfully.',
+          type: 'success'
+        })
+      }
+    })
+  }
 
-const deleteSale = (index: number): void => {
-  const sale = sales[index]
-  
-  showModal({
-    isOpen: true,
-    title: 'Delete Sale',
-    message: 'Are you sure you want to delete this sale?',
-    type: 'confirm',
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
-    onConfirm: () => {
-      // Use soft delete instead of removing from array
-      const updatedSales = sales.map((s, i) => 
-        i === index 
-          ? { ...s, deleted: true, deletedAt: new Date().toISOString() }
-          : s
-      );
-      setSales(updatedSales.filter(s => !s.deleted)); // Remove from view
-      saveSales(updatedSales); // Save with deleted flag
-      
-      showModal({
-        isOpen: true,
-        title: 'Success!',
-        message: 'Sale has been deleted successfully.',
-        type: 'success'
-      })
-    }
-  })
-}
-
-const deleteAllSales = (): void => {
-  showModal({
-    isOpen: true,
-    title: 'Delete All Sales',
-    message: 'Are you sure you want to delete all sales? This action cannot be undone.',
-    type: 'confirm',
-    confirmText: 'Delete All',
-    cancelText: 'Cancel',
-    onConfirm: () => {
-      // Use soft delete for all sales
-      const updatedSales = sales.map(sale => 
-        ({ ...sale, deleted: true, deletedAt: new Date().toISOString() })
-      );
-      setSales([]);
-      saveSales(updatedSales);
-      showModal({
-        isOpen: true,
-        title: 'Success!',
-        message: 'All sales have been deleted successfully.',
-        type: 'success'
-      })
-    }
-  })
-}
-
+  const deleteAllSales = (): void => {
+    showModal({
+      isOpen: true,
+      title: 'Delete All Sales',
+      message: 'Are you sure you want to delete all sales? This action cannot be undone.',
+      type: 'confirm',
+      confirmText: 'Delete All',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        // Use soft delete for all sales
+        const updatedSales = sales.map(sale => 
+          ({ ...sale, deleted: true, deletedAt: new Date().toISOString() })
+        );
+        setSales([]);
+        saveSales(updatedSales);
+        showModal({
+          isOpen: true,
+          title: 'Success!',
+          message: 'All sales have been deleted successfully.',
+          type: 'success'
+        })
+      }
+    })
+  }
 
   // Format sale type for display
   const formatSaleType = (type: string): string => {
@@ -568,11 +593,20 @@ const deleteAllSales = (): void => {
                 ref={customerPhoneRef}
                 type="text"
                 value={customerPhone}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setCustomerPhone(e.target.value)}
-                placeholder="Phone number"
-                style={inputStyle}
+                onChange={handlePhoneChange}
+                placeholder="03XXXXXXXXX (11 digits)"
+                style={{
+                  ...inputStyle,
+                  borderColor: customerPhone && !isValidPhoneNumber(customerPhone) ? '#dc3545' : '#ddd'
+                }}
+                maxLength={11}
                 required
               />
+              {customerPhone && !isValidPhoneNumber(customerPhone) && (
+                <small style={{ color: '#dc3545', fontSize: '0.8rem', marginTop: '5px', display: 'block' }}>
+                  Phone number must be exactly 11 digits
+                </small>
+              )}
             </div>
           </>
         )}

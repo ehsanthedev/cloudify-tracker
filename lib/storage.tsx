@@ -12,8 +12,8 @@ export interface Sale {
   customerName: string;
   customerPhone: string;
   isPaid?: boolean;
-  deleted?: boolean; // Add this field to track deletions
-  deletedAt?: string; // Add this field to track when it was deleted
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface Expense {
@@ -51,28 +51,9 @@ export interface Payment {
   deletedAt?: string;
 }
 
-// Utility functions for localStorage management
-export const getSales = (): Sale[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    const sales = localStorage.getItem('cloudify-sales');
-    return sales ? JSON.parse(sales) : [];
-  } catch (error) {
-    console.error('Error parsing sales from localStorage:', error);
-    return [];
-  }
-};
+// ==================== SALES FUNCTIONS ====================
 
-export const saveSales = (sales: Sale[]): void => {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem('cloudify-sales', JSON.stringify(sales));
-  } catch (error) {
-    console.error('Error saving sales to localStorage:', error);
-  }
-};
-
-// New function to get all sales including deleted ones
+// Get all sales including deleted ones (for internal use)
 export const getAllSales = (): Sale[] => {
   if (typeof window === 'undefined') return [];
   try {
@@ -84,7 +65,29 @@ export const getAllSales = (): Sale[] => {
   }
 };
 
-// New function to mark a sale as deleted
+// Get only active (non-deleted) sales - USE THIS IN YOUR SALES PAGE
+export const getActiveSales = (): Sale[] => {
+  const allSales = getAllSales();
+  return allSales.filter((sale: Sale) => !sale.deleted);
+};
+
+// Get only deleted sales - USE THIS IN YOUR DELETED SALES PAGE
+export const getDeletedSales = (): Sale[] => {
+  const allSales = getAllSales();
+  return allSales.filter((sale: Sale) => sale.deleted);
+};
+
+// Save sales to storage
+export const saveSales = (sales: Sale[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('cloudify-sales', JSON.stringify(sales));
+  } catch (error) {
+    console.error('Error saving sales to localStorage:', error);
+  }
+};
+
+// Soft delete a sale (mark as deleted but keep in storage)
 export const softDeleteSale = (timestamp: string): void => {
   const sales = getAllSales();
   const updatedSales = sales.map(sale => 
@@ -95,18 +98,32 @@ export const softDeleteSale = (timestamp: string): void => {
   saveSales(updatedSales);
 };
 
-// New function to permanently delete all data
-export const deleteAllReportsData = (): void => {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.removeItem('cloudify-sales');
-    localStorage.removeItem('cloudify-expenses');
-    localStorage.removeItem('cloudify-creditors');
-    localStorage.removeItem('cloudify-payments');
-  } catch (error) {
-    console.error('Error clearing reports data from localStorage:', error);
-  }
+// Restore a deleted sale
+export const restoreSale = (timestamp: string): void => {
+  const sales = getAllSales();
+  const updatedSales = sales.map(sale => 
+    sale.timestamp === timestamp 
+      ? { ...sale, deleted: false, deletedAt: undefined }
+      : sale
+  );
+  saveSales(updatedSales);
 };
+
+// Permanently delete a sale (remove from storage completely)
+export const permanentDeleteSale = (timestamp: string): void => {
+  const sales = getAllSales();
+  const updatedSales = sales.filter(sale => sale.timestamp !== timestamp);
+  saveSales(updatedSales);
+};
+
+// Empty trash (permanently delete all soft-deleted sales)
+export const emptyTrash = (): void => {
+  const sales = getAllSales();
+  const updatedSales = sales.filter(sale => !sale.deleted);
+  saveSales(updatedSales);
+};
+
+// ==================== EXPENSES FUNCTIONS ====================
 
 export const getExpenses = (): Expense[] => {
   if (typeof window === 'undefined') return [];
@@ -128,6 +145,8 @@ export const saveExpenses = (expenses: Expense[]): void => {
   }
 };
 
+// ==================== CREDITORS FUNCTIONS ====================
+
 export const getCreditors = (): Creditor[] => {
   if (typeof window === 'undefined') return [];
   try {
@@ -147,6 +166,8 @@ export const saveCreditors = (creditors: Creditor[]): void => {
     console.error('Error saving creditors to localStorage:', error);
   }
 };
+
+// ==================== PAYMENTS FUNCTIONS ====================
 
 export const getPayments = (): Payment[] => {
   if (typeof window === 'undefined') return [];
@@ -168,6 +189,9 @@ export const savePayments = (payments: Payment[]): void => {
   }
 };
 
+// ==================== UTILITY FUNCTIONS ====================
+
+// Clear all data (use with caution!)
 export const clearAllData = (): void => {
   if (typeof window === 'undefined') return;
   try {
@@ -180,6 +204,7 @@ export const clearAllData = (): void => {
   }
 };
 
+// Get all data (for backup or reporting)
 export const getAllData = (): {
   sales: Sale[];
   expenses: Expense[];
@@ -187,13 +212,14 @@ export const getAllData = (): {
   payments: Payment[];
 } => {
   return {
-    sales: getAllSales(), // Use getAllSales to include deleted entries
+    sales: getAllSales(),
     expenses: getExpenses(),
     creditors: getCreditors(),
     payments: getPayments(),
   };
 };
 
+// Export types for convenience
 export type {
   Sale as SaleType,
   Expense as ExpenseType,

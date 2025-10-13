@@ -37,7 +37,7 @@ export default function ExpensesPage() {
         title: 'Validation Error',
         message: 'Please fill all required fields.',
         type: 'error',
-        isOpen: false
+        isOpen: true // Fixed: was false
       })
       return
     }
@@ -48,7 +48,7 @@ export default function ExpensesPage() {
         title: 'Invalid Amount',
         message: 'Please enter a valid amount.',
         type: 'error',
-        isOpen: false
+        isOpen: true // Fixed: was false
       })
       return
     }
@@ -70,7 +70,7 @@ export default function ExpensesPage() {
       title: 'Success!',
       message: 'Expense has been added successfully.',
       type: 'success',
-      isOpen: false
+      isOpen: true // Fixed: was false
     })
   }
 
@@ -81,15 +81,16 @@ export default function ExpensesPage() {
       type: 'confirm',
       confirmText: 'Delete',
       cancelText: 'Cancel',
-      isOpen: false,
+      isOpen: true, // Fixed: was false
       onConfirm: () => {
         const updatedExpenses = expenses.filter((_, i) => i !== index)
         setExpenses(updatedExpenses)
+        saveExpenses(updatedExpenses) // Added: Save to localStorage
         showModal({
           title: 'Success!',
           message: 'Expense has been deleted successfully.',
           type: 'success',
-          isOpen: false
+          isOpen: true // Fixed: was false
         })
       }
     })
@@ -101,7 +102,7 @@ export default function ExpensesPage() {
         title: 'No Expenses',
         message: 'No expenses to delete.',
         type: 'alert',
-        isOpen: false
+        isOpen: true // Fixed: was false
       })
       return
     }
@@ -112,7 +113,7 @@ export default function ExpensesPage() {
       type: 'confirm',
       confirmText: 'Delete All',
       cancelText: 'Cancel',
-      isOpen: false,
+      isOpen: true, // Fixed: was false
       onConfirm: () => {
         setExpenses([])
         saveExpenses([])
@@ -120,7 +121,7 @@ export default function ExpensesPage() {
           title: 'Success!',
           message: 'All expenses have been deleted successfully.',
           type: 'success',
-          isOpen: false
+          isOpen: true // Fixed: was false
         })
       }
     })
