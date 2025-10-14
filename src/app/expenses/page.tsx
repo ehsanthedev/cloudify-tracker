@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, ChangeEvent } from 'react'
-import { getExpenses, saveExpenses, Expense } from '../../../lib/storage'
+import { getExpenses, saveExpenses, Expense, permanentDeleteAllExpenses } from '../../../lib/storage'
 import Modal, { ModalProps } from '../../components/Modal'
 
 export default function ExpensesPage() {
@@ -96,36 +96,41 @@ export default function ExpensesPage() {
     })
   }
 
-  const deleteAllExpenses = (): void => {
-    if (expenses.length === 0) {
-      showModal({
-        title: 'No Expenses',
-        message: 'No expenses to delete.',
-        type: 'alert',
-        isOpen: true // Fixed: was false
-      })
-      return
-    }
-
+  // Replace the existing deleteAllExpenses function in expenses/page.tsx
+const deleteAllExpenses = (): void => {
+  if (expenses.length === 0) {
     showModal({
-      title: 'Delete All Expenses',
-      message: 'Are you sure you want to delete ALL expenses? This action cannot be undone.',
-      type: 'confirm',
-      confirmText: 'Delete All',
-      cancelText: 'Cancel',
-      isOpen: true, // Fixed: was false
-      onConfirm: () => {
-        setExpenses([])
-        saveExpenses([])
-        showModal({
-          title: 'Success!',
-          message: 'All expenses have been deleted successfully.',
-          type: 'success',
-          isOpen: true // Fixed: was false
-        })
-      }
+      title: 'No Expenses',
+      message: 'No expenses to delete.',
+      type: 'alert',
+      isOpen: true
     })
+    return
   }
+
+  showModal({
+    title: 'Delete All Expenses',
+    message: 'Are you sure you want to permanently delete ALL expenses (including from reports)? This action cannot be undone.',
+    type: 'confirm',
+    confirmText: 'Delete All',
+    cancelText: 'Cancel',
+    isOpen: true,
+    onConfirm: () => {
+      // Permanently delete all expenses from storage
+      permanentDeleteAllExpenses();
+      
+      // Update state to empty array
+      setExpenses([]);
+      
+      showModal({
+        title: 'Success!',
+        message: 'All expenses have been permanently deleted from everywhere.',
+        type: 'success',
+        isOpen: true
+      })
+    }
+  })
+}
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
 

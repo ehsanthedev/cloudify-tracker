@@ -227,3 +227,60 @@ export type {
   Payment as PaymentType,
   Purchase as PurchaseType,
 };
+
+// Add these functions to your existing storage.tsx file
+
+// ==================== ENHANCED DELETION FUNCTIONS ====================
+
+// Permanently delete all sales (both active and deleted)
+export const permanentDeleteAllSales = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-sales');
+  } catch (error) {
+    console.error('Error deleting all sales from localStorage:', error);
+  }
+};
+
+// Permanently delete all expenses
+export const permanentDeleteAllExpenses = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-expenses');
+  } catch (error) {
+    console.error('Error deleting all expenses from localStorage:', error);
+  }
+};
+
+// Permanently delete all creditors
+export const permanentDeleteAllCreditors = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-creditors');
+  } catch (error) {
+    console.error('Error deleting all creditors from localStorage:', error);
+  }
+};
+
+// Permanently delete all payments
+export const permanentDeleteAllPayments = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-payments');
+  } catch (error) {
+    console.error('Error deleting all payments from localStorage:', error);
+  }
+};
+
+// Clear all data except creditors
+export const clearAllDataExceptCreditors = (): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('cloudify-sales');
+    localStorage.removeItem('cloudify-expenses');
+    localStorage.removeItem('cloudify-payments');
+    // Note: We DON'T remove cloudify-creditors
+  } catch (error) {
+    console.error('Error clearing data from localStorage:', error);
+  }
+};

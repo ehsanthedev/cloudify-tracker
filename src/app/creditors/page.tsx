@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, ChangeEvent } from 'react'
-import { getCreditors, saveCreditors, getPayments, savePayments, getAllSales, saveSales, Creditor, Payment, Sale } from '../../../lib/storage'
+import { getCreditors, saveCreditors, getPayments, savePayments, getAllSales, saveSales, Creditor, Payment, Sale, permanentDeleteAllCreditors, permanentDeleteAllPayments } from '../../../lib/storage'
 import Modal, { ModalProps } from '../../components/Modal'
 
 export default function CreditorsPage() {
@@ -148,37 +148,43 @@ export default function CreditorsPage() {
         })
     }
 
-    const deleteAllCreditors = (): void => {
-        if (creditors.length === 0) {
-            showModal({
-                isOpen: true,
-                title: 'No Creditors',
-                message: 'No creditors to delete.',
-                type: 'alert'
-            })
-            return
-        }
+    // Replace the existing deleteAllCreditors function in creditors/page.tsx
+const deleteAllCreditors = (): void => {
+  if (creditors.length === 0) {
+    showModal({
+      isOpen: true,
+      title: 'No Creditors',
+      message: 'No creditors to delete.',
+      type: 'alert'
+    })
+    return
+  }
 
-        showModal({
-            isOpen: true,
-            title: 'Delete All Creditors',
-            message: 'Are you sure you want to delete ALL creditors? This action cannot be undone.',
-            type: 'confirm',
-            confirmText: 'Delete All',
-            cancelText: 'Cancel',
-            onConfirm: () => {
-                setCreditors([])
-                saveCreditors([])
-                
-                showModal({
-                    isOpen: true,
-                    title: 'Success!',
-                    message: 'All creditors have been deleted successfully.',
-                    type: 'success'
-                })
-            }
-        })
+  showModal({
+    isOpen: true,
+    title: 'Delete All Creditors',
+    message: 'Are you sure you want to delete ALL creditors? This action cannot be undone.',
+    type: 'confirm',
+    confirmText: 'Delete All',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      // Permanently delete all creditors from storage
+      permanentDeleteAllCreditors();
+      
+      // Update state to empty arrays
+      setCreditors([]);
+      setPayments([]); // Also clear payments since they're linked to creditors
+      permanentDeleteAllPayments(); // Remove payments from storage too
+      
+      showModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'All creditors have been deleted successfully.',
+        type: 'success'
+      })
     }
+  })
+}
 
     const deletePaymentHistory = (): void => {
         if (payments.length === 0) {

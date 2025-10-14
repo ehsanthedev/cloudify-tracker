@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getAllData, clearAllData, Sale, Expense, Creditor, Payment } from '../../../../lib/storage'
+import { getAllData, clearAllData, Sale, Expense, Creditor, Payment, clearAllDataExceptCreditors } from '../../../../lib/storage'
 import Link from 'next/link'
 import Modal, { ModalProps } from '../../../components/Modal'
 
@@ -57,31 +57,37 @@ export default function ReportsPage() {
     }
   }
 
-  const handleDeleteAllData = (): void => {
-    showModal({
-      isOpen: true,
-      title: 'Delete All Data',
-      message: 'Are you sure you want to delete ALL data? This action cannot be undone and will remove all sales, expenses, creditors, and payments permanently.',
-      type: 'confirm',
-      confirmText: 'Delete All',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        clearAllData() // Changed from deleteAllReportsData to clearAllData
-        setData({
-          sales: [],
-          expenses: [],
-          creditors: [],
-          payments: []
-        })
-        showModal({
-          isOpen: true,
-          title: 'Success!',
-          message: 'All data has been permanently deleted.',
-          type: 'success'
-        })
-      }
-    })
-  }
+  // Replace the existing handleDeleteAllDataExceptCreditors function in totals/reports/page.tsx
+const handleDeleteAllDataExceptCreditors = (): void => {
+  showModal({
+    isOpen: true,
+    title: 'Delete All Data (Except Creditors)',
+    message: 'Are you sure you want to delete ALL data except creditors? This will remove all sales, expenses, and payments permanently but keep creditors intact.',
+    type: 'confirm',
+    confirmText: 'Delete All',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      // Use the new function that preserves creditors
+      clearAllDataExceptCreditors();
+      
+      // Update state - keep creditors, clear everything else
+      const currentCreditors = data.creditors; // Preserve current creditors
+      setData({
+        sales: [],
+        expenses: [],
+        creditors: currentCreditors, // Keep creditors
+        payments: []
+      })
+      
+      showModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'All data except creditors has been permanently deleted.',
+        type: 'success'
+      })
+    }
+  })
+}
 
   if (!isAuthenticated) {
     return (
@@ -147,8 +153,8 @@ export default function ReportsPage() {
             Includes all historical data including deleted entries
           </p>
           <div style={headerButtonsStyle}>
-            <button onClick={handleDeleteAllData} style={dangerButtonStyles}>
-              Delete All Data
+            <button onClick={handleDeleteAllDataExceptCreditors} style={dangerButtonStyles}>
+              Delete All Data (Keep Creditors)
             </button>
             <Link href="/totals" style={backButtonStyles}>
               Back to Totals
@@ -329,7 +335,6 @@ export default function ReportsPage() {
   )
 }
 
-// ... (all your existing styles remain exactly the same)
 
 // Styles (keep all your existing styles the same)
 const authContainerStyles: React.CSSProperties = {
