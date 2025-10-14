@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, ChangeEvent, useRef, useCallback } from 'react'
-import { getActiveSales, saveSales, getCreditors, saveCreditors, Sale, Creditor, Purchase } from '../../lib/storage'
+import { getActiveSales, saveSales, getCreditors, saveCreditors, Sale, Creditor, Purchase, permanentDeleteAllSales } from '../../lib/storage'
 import Modal, { ModalProps } from '../components/Modal'
 
 export default function SalesTracker() {
@@ -402,30 +402,31 @@ export default function SalesTracker() {
     })
   }
 
-  const deleteAllSales = (): void => {
-    showModal({
-      isOpen: true,
-      title: 'Delete All Sales',
-      message: 'Are you sure you want to delete all sales? This action cannot be undone.',
-      type: 'confirm',
-      confirmText: 'Delete All',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        // Use soft delete for all sales
-        const updatedSales = sales.map(sale => 
-          ({ ...sale, deleted: true, deletedAt: new Date().toISOString() })
-        );
-        setSales([]);
-        saveSales(updatedSales);
-        showModal({
-          isOpen: true,
-          title: 'Success!',
-          message: 'All sales have been deleted successfully.',
-          type: 'success'
-        })
-      }
-    })
-  }
+  // Replace the existing deleteAllSales function in SalesTracker.tsx
+const deleteAllSales = (): void => {
+  showModal({
+    isOpen: true,
+    title: 'Delete All Sales',
+    message: 'Are you sure you want to permanently delete ALL sales (including deleted sales from reports)? This action cannot be undone.',
+    type: 'confirm',
+    confirmText: 'Delete All',
+    cancelText: 'Cancel',
+    onConfirm: () => {
+      // Permanently delete all sales from storage
+      permanentDeleteAllSales();
+      
+      // Update state to empty array
+      setSales([]);
+      
+      showModal({
+        isOpen: true,
+        title: 'Success!',
+        message: 'All sales have been permanently deleted from everywhere.',
+        type: 'success'
+      })
+    }
+  })
+}
 
   // Format sale type for display
   const formatSaleType = (type: string): string => {
