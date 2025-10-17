@@ -605,7 +605,6 @@ export default function TotalsPage() {
           </div>
         </div>
         <div style={buttonContainerStyles}>
-          <span>Ehsan</span>
           <button onClick={downloadPDF} style={pdfButtonStyles}>
             Download PDF Report
           </button>
