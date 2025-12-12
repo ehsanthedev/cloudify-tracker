@@ -25,6 +25,7 @@ export default function SalesTracker() {
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
 
   // Refs for form fields
   const typeSelectRef = useRef<HTMLSelectElement>(null);
@@ -63,6 +64,7 @@ export default function SalesTracker() {
     // Focus on type field on initial load
     setTimeout(() => {
       typeSelectRef.current?.focus();
+      setIsFormVisible(true); // Trigger form animation
     }, 100);
   }, []);
 
@@ -664,6 +666,181 @@ export default function SalesTracker() {
 
   return (
     <div style={containerStyle}>
+      {/* Add Global CSS for animations */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+          }
+        }
+
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-5px);
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -1000px 0;
+          }
+          100% {
+            background-position: 1000px 0;
+          }
+        }
+
+        @keyframes bounceIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.3);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.05);
+          }
+          70% {
+            transform: scale(0.9);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        .animate-slide-in-right {
+          animation: slideInRight 0.5s ease-out forwards;
+        }
+
+        .animate-pulse-once {
+          animation: pulse 1.5s ease-in-out;
+        }
+
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+
+        .hover-grow {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .hover-grow:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .hover-shimmer {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .hover-shimmer:hover::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent
+          );
+          animation: shimmer 1.5s infinite;
+        }
+
+        .transition-all-smooth {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .transition-transform-smooth {
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .transition-opacity-smooth {
+          transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .button-press {
+          transition: transform 0.1s ease;
+        }
+
+        .button-press:active {
+          transform: scale(0.95);
+        }
+
+        .form-input-focus {
+          transition: all 0.3s ease;
+        }
+
+        .form-input-focus:focus {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(74, 111, 165, 0.2);
+        }
+
+        .card-hover {
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card-hover:hover {
+          transform: translateY(-5px) scale(1.02);
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .success-highlight {
+          background: linear-gradient(45deg, #28a745, #20c997);
+          background-size: 200% 200%;
+          animation: gradient 2s ease infinite;
+        }
+
+        @keyframes gradient {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+      `}</style>
+
       {/* Modal Component */}
       <Modal
         isOpen={modal.isOpen}
@@ -676,8 +853,16 @@ export default function SalesTracker() {
         cancelText={modal.cancelText}
       />
 
-      {/* Form Grid */}
-      <div style={formGridStyle}>
+      {/* Form Grid with animation */}
+      <div
+        style={{
+          ...formGridStyle,
+          opacity: isFormVisible ? 1 : 0,
+          transform: isFormVisible ? "translateY(0)" : "translateY(20px)",
+          transition: "all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+        className="animate-fade-in-up"
+      >
         <div style={formGroupStyle}>
           <label style={labelStyle}>Sale Type</label>
           <select
@@ -686,6 +871,7 @@ export default function SalesTracker() {
             onChange={handleTypeChange}
             style={inputStyle}
             autoFocus
+            className="form-input-focus hover-shimmer transition-all-smooth"
           >
             <option value="refill">Refill</option>
             <option value="coil">Coil</option>
@@ -714,6 +900,7 @@ export default function SalesTracker() {
                   : "Enter device name"
               }
               style={inputStyle}
+              className="form-input-focus hover-shimmer transition-all-smooth"
             />
           ) : (
             <select
@@ -722,6 +909,7 @@ export default function SalesTracker() {
                 setItemName(e.target.value)
               }
               style={inputStyle}
+              className="form-input-focus hover-shimmer transition-all-smooth"
             >
               {type === "refill" || type === "flavourbottle" ? (
                 <>
@@ -761,6 +949,7 @@ export default function SalesTracker() {
             placeholder="Enter quantity"
             style={inputStyle}
             required
+            className="form-input-focus hover-shimmer transition-all-smooth"
           />
           {(type === "refill" || type === "coil") && quantity && (
             <small style={noteStyle}>
@@ -783,6 +972,7 @@ export default function SalesTracker() {
             placeholder="Enter amount"
             style={inputStyle}
             required
+            className="form-input-focus hover-shimmer transition-all-smooth"
           />
           {(type === "refill" || type === "coil") &&
             amount &&
@@ -792,6 +982,7 @@ export default function SalesTracker() {
                   parseFloat(amount),
                   parseFloat(suggestedAmount)
                 )}
+                className="transition-opacity-smooth"
               >
                 {parseFloat(amount) === parseFloat(suggestedAmount)
                   ? "✓ Using suggested amount"
@@ -814,6 +1005,7 @@ export default function SalesTracker() {
               setPaymentMethod(e.target.value)
             }
             style={inputStyle}
+            className="form-input-focus hover-shimmer transition-all-smooth"
           >
             <option value="cash">Cash</option>
             <option value="jazzcash">JazzCash</option>
@@ -830,6 +1022,7 @@ export default function SalesTracker() {
                 setIsCredit(e.target.checked)
               }
               style={checkboxStyle}
+              className="transition-all-smooth"
             />
             Sell on Credit
           </label>
@@ -837,7 +1030,7 @@ export default function SalesTracker() {
 
         {isCredit && (
           <>
-            <div style={formGroupStyle}>
+            <div style={formGroupStyle} className="animate-slide-in-right">
               <label style={labelStyle}>Customer Name *</label>
               <input
                 ref={customerNameRef}
@@ -849,9 +1042,10 @@ export default function SalesTracker() {
                 placeholder="Customer name"
                 style={inputStyle}
                 required
+                className="form-input-focus hover-shimmer transition-all-smooth"
               />
             </div>
-            <div style={formGroupStyle}>
+            <div style={formGroupStyle} className="animate-slide-in-right">
               <label style={labelStyle}>Customer Phone *</label>
               <input
                 ref={customerPhoneRef}
@@ -868,6 +1062,7 @@ export default function SalesTracker() {
                 }}
                 maxLength={11}
                 required
+                className="form-input-focus hover-shimmer transition-all-smooth"
               />
               {customerPhone && !isValidPhoneNumber(customerPhone) && (
                 <small
@@ -877,6 +1072,7 @@ export default function SalesTracker() {
                     marginTop: "5px",
                     display: "block",
                   }}
+                  className="animate-fade-in-up"
                 >
                   Phone number must be exactly 11 digits
                 </small>
@@ -886,32 +1082,53 @@ export default function SalesTracker() {
         )}
       </div>
 
-      <div style={actionButtonsStyle}>
+      <div style={actionButtonsStyle} className="animate-fade-in-up">
         <button
           onClick={validateAndSaveSale}
           style={
             editingIndex !== null ? warningButtonStyle : successButtonStyle
           }
+          className={`button-press hover-grow transition-all-smooth ${
+            editingIndex !== null ? "animate-pulse-once" : ""
+          }`}
         >
           {editingIndex !== null
             ? "Update Sale (or Press Enter)"
             : "Add New Sale (or Press Enter)"}
         </button>
         {editingIndex !== null && (
-          <button onClick={cancelEdit} style={secondaryButtonStyle}>
+          <button
+            onClick={cancelEdit}
+            style={secondaryButtonStyle}
+            className="button-press hover-grow transition-all-smooth"
+          >
             Cancel Edit
           </button>
         )}
-        <button onClick={deleteAllSales} style={dangerButtonStyle}>
+        <button
+          onClick={deleteAllSales}
+          style={dangerButtonStyle}
+          className="button-press hover-grow transition-all-smooth"
+        >
           Delete All Sales
         </button>
       </div>
 
       <div style={cardsContainerStyle}>
         {sales.length === 0 ? (
-          <div style={emptyStateStyle}>
+          <div style={emptyStateStyle} className="animate-float">
             <h3>No Sales Recorded Yet</h3>
             <p>Add your first sale to get started!</p>
+            <div
+              style={{
+                fontSize: "3rem",
+                margin: "20px 0",
+                opacity: 0.7,
+                animation: "float 3s ease-in-out infinite",
+              }}
+            >
+              📋
+            </div>
           </div>
         ) : (
           sales.map((sale, index) => (
@@ -920,10 +1137,16 @@ export default function SalesTracker() {
               style={{
                 ...cardStyle,
                 borderTop: `4px solid ${getBorderColor(sale.type)}`,
+                animationDelay: `${index * 0.1}s`,
               }}
+              className="card-hover animate-fade-in-up"
             >
               <h3 style={cardTitleStyle}>{formatSaleType(sale.type)} Sale</h3>
-              {sale.isCredit && <div style={creditBadgeStyle}>CREDIT</div>}
+              {sale.isCredit && (
+                <div style={creditBadgeStyle} className="animate-pulse-once">
+                  CREDIT
+                </div>
+              )}
               <p>
                 <span style={labelTextStyle}>Item:</span> {sale.itemName}
               </p>
@@ -936,6 +1159,7 @@ export default function SalesTracker() {
                       color: "#666",
                       fontSize: "0.9rem",
                     }}
+                    className="transition-opacity-smooth"
                   >
                     (Rate: {sale.amount / sale.quantity} PKR each)
                   </small>
@@ -965,12 +1189,17 @@ export default function SalesTracker() {
                 Added: {new Date(sale.timestamp).toLocaleString()}
               </p>
               <div style={cardActionsStyle}>
-                <button onClick={() => editSale(index)} style={editButtonStyle}>
+                <button
+                  onClick={() => editSale(index)}
+                  style={editButtonStyle}
+                  className="button-press hover-grow transition-all-smooth"
+                >
                   Edit
                 </button>
                 <button
                   onClick={() => deleteSale(index)}
                   style={deleteButtonStyle}
+                  className="button-press hover-grow transition-all-smooth"
                 >
                   Delete
                 </button>
@@ -988,6 +1217,7 @@ const containerStyle: React.CSSProperties = {
   padding: "1rem",
   maxWidth: "1400px",
   margin: "0 auto",
+  animation: "fadeInUp 0.8s ease-out",
 };
 
 const formGridStyle: React.CSSProperties = {
@@ -995,10 +1225,12 @@ const formGridStyle: React.CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
   gap: "20px",
   marginBottom: "30px",
-  backgroundColor: "rgba(255, 255, 255, 0.8)",
+  backgroundColor: "rgba(255, 255, 255, 0.9)",
   padding: "25px",
-  borderRadius: "10px",
-  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
+  borderRadius: "15px",
+  boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
 };
 
 const formGroupStyle: React.CSSProperties = {
@@ -1007,31 +1239,37 @@ const formGroupStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  marginBottom: "5px",
-  fontWeight: "500",
+  marginBottom: "8px",
+  fontWeight: "600",
+  color: "#333",
+  fontSize: "0.95rem",
+  transition: "color 0.3s ease",
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "12px",
+  padding: "14px",
   fontSize: "1rem",
-  border: "1px solid #ddd",
-  borderRadius: "6px",
+  border: "2px solid #e1e5e9",
+  borderRadius: "10px",
   boxSizing: "border-box" as const,
+  backgroundColor: "white",
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 };
 
 const noteStyle: React.CSSProperties = {
   display: "block",
-  marginTop: "5px",
+  marginTop: "8px",
   fontSize: "0.8rem",
   color: "#666",
   fontStyle: "italic",
   lineHeight: "1.4",
+  opacity: 0.9,
 };
 
 const amountNoteStyle = (actual: number, suggested: number) => ({
   display: "block",
-  marginTop: "5px",
+  marginTop: "8px",
   fontSize: "0.8rem",
   color:
     actual === suggested
@@ -1041,17 +1279,25 @@ const amountNoteStyle = (actual: number, suggested: number) => ({
       : "#ffc107",
   fontStyle: "italic",
   lineHeight: "1.4",
+  fontWeight: "500",
 });
 
 const checkboxLabelStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: "10px",
+  gap: "12px",
   cursor: "pointer",
+  padding: "10px",
+  borderRadius: "8px",
+  transition: "all 0.3s ease",
+  marginTop: "10px",
 };
 
 const checkboxStyle: React.CSSProperties = {
-  width: "auto",
+  width: "18px",
+  height: "18px",
+  cursor: "pointer",
+  accentColor: "#4a6fa5",
 };
 
 const actionButtonsStyle: React.CSSProperties = {
@@ -1059,50 +1305,68 @@ const actionButtonsStyle: React.CSSProperties = {
   gap: "15px",
   marginBottom: "30px",
   flexDirection: "column",
+  opacity: 0,
+  animation: "fadeInUp 0.8s ease-out 0.3s forwards",
 };
 
 const successButtonStyle: React.CSSProperties = {
-  padding: "12px 24px",
+  padding: "16px 24px",
   backgroundColor: "#28a745",
   color: "white",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "12px",
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "1.1rem",
   flex: 1,
+  fontWeight: "600",
+  letterSpacing: "0.5px",
+  position: "relative",
+  overflow: "hidden",
 };
 
 const warningButtonStyle: React.CSSProperties = {
-  padding: "12px 24px",
+  padding: "16px 24px",
   backgroundColor: "#ffc107",
   color: "black",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "12px",
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "1.1rem",
   flex: 1,
+  fontWeight: "600",
+  letterSpacing: "0.5px",
+  position: "relative",
+  overflow: "hidden",
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
-  padding: "12px 24px",
+  padding: "16px 24px",
   backgroundColor: "#6c757d",
   color: "white",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "12px",
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "1.1rem",
   flex: 1,
+  fontWeight: "600",
+  letterSpacing: "0.5px",
+  position: "relative",
+  overflow: "hidden",
 };
 
 const dangerButtonStyle: React.CSSProperties = {
-  padding: "12px 24px",
+  padding: "16px 24px",
   backgroundColor: "#dc3545",
   color: "white",
   border: "none",
-  borderRadius: "6px",
+  borderRadius: "12px",
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "1.1rem",
   flex: 1,
+  fontWeight: "600",
+  letterSpacing: "0.5px",
+  position: "relative",
+  overflow: "hidden",
 };
 
 const cardsContainerStyle: React.CSSProperties = {
@@ -1113,16 +1377,20 @@ const cardsContainerStyle: React.CSSProperties = {
 
 const cardStyle: React.CSSProperties = {
   backgroundColor: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 4px 15px rgba(0, 0, 0, 0.08)",
+  padding: "25px",
+  borderRadius: "15px",
+  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.08)",
   position: "relative",
+  overflow: "hidden",
+  opacity: 0,
+  animation: "fadeInUp 0.6s ease-out forwards",
 };
 
 const cardTitleStyle: React.CSSProperties = {
   margin: "0 0 15px 0",
-  fontSize: "1.25rem",
-  fontWeight: "600",
+  fontSize: "1.3rem",
+  fontWeight: "700",
+  color: "#2c3e50",
 };
 
 const creditBadgeStyle: React.CSSProperties = {
@@ -1131,57 +1399,70 @@ const creditBadgeStyle: React.CSSProperties = {
   right: "15px",
   backgroundColor: "#ffc107",
   color: "#333",
-  padding: "4px 8px",
-  borderRadius: "4px",
-  fontSize: "0.8rem",
+  padding: "6px 12px",
+  borderRadius: "20px",
+  fontSize: "0.75rem",
   fontWeight: "bold",
+  letterSpacing: "0.5px",
+  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
 };
 
 const labelTextStyle: React.CSSProperties = {
   fontWeight: "600",
   color: "#555",
+  display: "inline-block",
+  minWidth: "80px",
 };
 
 const timestampStyle: React.CSSProperties = {
   fontSize: "0.85rem",
   color: "#777",
-  marginTop: "15px",
-  paddingTop: "10px",
-  borderTop: "1px dashed #ddd",
+  marginTop: "20px",
+  paddingTop: "15px",
+  borderTop: "1px dashed #e1e5e9",
+  fontStyle: "italic",
 };
 
 const cardActionsStyle: React.CSSProperties = {
   display: "flex",
-  gap: "10px",
-  marginTop: "15px",
+  gap: "12px",
+  marginTop: "20px",
   justifyContent: "flex-end",
 };
 
 const editButtonStyle: React.CSSProperties = {
-  padding: "6px 12px",
-  fontSize: "0.85rem",
+  padding: "8px 16px",
+  fontSize: "0.9rem",
   backgroundColor: "rgba(255, 193, 7, 0.1)",
   color: "#856404",
-  border: "1px solid #ffc107",
-  borderRadius: "4px",
+  border: "2px solid #ffc107",
+  borderRadius: "8px",
   cursor: "pointer",
+  fontWeight: "600",
+  letterSpacing: "0.3px",
+  transition: "all 0.3s ease",
 };
 
 const deleteButtonStyle: React.CSSProperties = {
-  padding: "6px 12px",
-  fontSize: "0.85rem",
+  padding: "8px 16px",
+  fontSize: "0.9rem",
   backgroundColor: "rgba(220, 53, 69, 0.1)",
   color: "#dc3545",
-  border: "1px solid #dc3545",
-  borderRadius: "4px",
+  border: "2px solid #dc3545",
+  borderRadius: "8px",
   cursor: "pointer",
+  fontWeight: "600",
+  letterSpacing: "0.3px",
+  transition: "all 0.3s ease",
 };
 
 const emptyStateStyle: React.CSSProperties = {
   textAlign: "center",
-  padding: "40px",
-  color: "#777",
-  backgroundColor: "rgba(0, 0, 0, 0.02)",
-  borderRadius: "10px",
+  padding: "60px 40px",
+  color: "#666",
+  backgroundColor: "rgba(74, 111, 165, 0.03)",
+  borderRadius: "20px",
   gridColumn: "1 / -1",
+  border: "2px dashed #e1e5e9",
+  animation: "float 6s ease-in-out infinite",
 };

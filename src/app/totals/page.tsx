@@ -132,9 +132,405 @@ export default function TotalsPage() {
 
   // Download PDF function
   const downloadPDF = async (): Promise<void> => {
-    // ... (keep the existing PDF download function unchanged)
-    // This function is long and unchanged from your original code
-    // I've omitted it here for brevity
+    const html2pdf = (await import("html2pdf.js")).default;
+
+    // Get all data from storage including deleted entries
+    const allSales = getAllSales();
+    const allExpenses = getExpenses();
+    const allCreditors = getCreditors();
+    const allPayments = getPayments();
+
+    // Filter active sales for totals calculation (excluding deleted)
+    const activeSales = allSales.filter((sale) => !sale.deleted);
+
+    // Calculate totals using active sales only for the dashboard
+    const totalSales = activeSales.reduce((sum, sale) => sum + sale.amount, 0);
+    const totalCashSales = activeSales
+      .filter((sale) => !sale.isCredit && sale.paymentMethod === "cash")
+      .reduce((sum, sale) => sum + sale.amount, 0);
+    const totalJazzCashSales = activeSales
+      .filter((sale) => !sale.isCredit && sale.paymentMethod === "jazzcash")
+      .reduce((sum, sale) => sum + sale.amount, 0);
+    const totalCreditCardSales = activeSales
+      .filter((sale) => !sale.isCredit && sale.paymentMethod === "card")
+      .reduce((sum, sale) => sum + sale.amount, 0);
+    const totalCreditSales = activeSales
+      .filter((sale) => sale.isCredit)
+      .reduce((sum, sale) => sum + sale.amount, 0);
+    const totalExpenses = allExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+    const totalOwed = allCreditors.reduce(
+      (sum, creditor) => sum + creditor.amountOwed,
+      0
+    );
+    const totalPaymentsReceived = allPayments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+    const netAmount =
+      totalCashSales +
+      totalJazzCashSales +
+      totalCreditCardSales +
+      totalPaymentsReceived -
+      totalExpenses;
+
+    // Count deleted sales for the report
+    const deletedSalesCount = allSales.filter((sale) => sale.deleted).length;
+
+    // Create comprehensive HTML content that includes both totals and complete reports
+    const comprehensiveHTML = `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #6c757d, #495057); color: white; padding: 20px; border-radius: 10px;">
+          <h1>CLOUDIFY - COMPREHENSIVE BUSINESS REPORT</h1>
+          <p>Generated on: ${new Date().toLocaleString()}</p>
+          <p style="color: #ffeb3b; font-weight: bold; margin-top: 10px;">INCLUDES TOTALS DASHBOARD & COMPLETE REPORTS WITH ALL ENTRIES</p>
+        </div>
+
+        <!-- Executive Summary -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">EXECUTIVE SUMMARY</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">
+              <h3 style="margin: 0; color: #28a745;">Net Amount</h3>
+              <p style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">${netAmount.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+              <h3 style="margin: 0; color: #2196f3;">Total Sales</h3>
+              <p style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">${totalSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; text-align: center;">
+              <h3 style="margin: 0; color: #ffc107;">Credit Sales</h3>
+              <p style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">${totalCreditSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="background: #f8d7da; padding: 15px; border-radius: 8px; text-align: center;">
+              <h3 style="margin: 0; color: #dc3545;">Total Expenses</h3>
+              <p style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">${totalExpenses.toFixed(
+                2
+              )} PKR</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Summary -->
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; text-align: center; margin-bottom: 20px;">FINANCIAL SUMMARY</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div style="text-align: center;">
+              <h4>Total Revenue</h4>
+              <p style="font-size: 1.2rem; font-weight: bold;">${totalSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="text-align: center;">
+              <h4>Collected Revenue</h4>
+              <p style="font-size: 1.2rem; font-weight: bold;">${(
+                totalCashSales +
+                totalJazzCashSales +
+                totalCreditCardSales +
+                totalPaymentsReceived
+              ).toFixed(2)} PKR</p>
+            </div>
+            <div style="text-align: center;">
+              <h4>Pending Collection</h4>
+              <p style="font-size: 1.2rem; font-weight: bold;">${(
+                totalCreditSales - totalPaymentsReceived
+              ).toFixed(2)} PKR</p>
+            </div>
+            <div style="text-align: center;">
+              <h4>Net Profit</h4>
+              <p style="font-size: 1.2rem; font-weight: bold; color: ${
+                netAmount >= 0 ? "#28a745" : "#dc3545"
+              }">
+                ${netAmount.toFixed(2)} PKR
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Method Breakdown -->
+        <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+          <h2 style="color: #856404; text-align: center; margin-bottom: 20px;">PAYMENT METHOD BREAKDOWN</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div style="text-align: center;">
+              <h4>Cash Sales</h4>
+              <p style="font-size: 1.2rem; font-weight: bold; color: #28a745;">${totalCashSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="text-align: center;">
+              <h4>JazzCash Sales</h4>
+              <p style="font-size: 1.2rem; font-weight: bold; color: #17a2b8;">${totalJazzCashSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+            <div style="text-align: center;">
+              <h4>Credit Card Sales</h4>
+              <p style="font-size: 1.2rem; font-weight: bold; color: #6f42c1;">${totalCreditCardSales.toFixed(
+                2
+              )} PKR</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page Break for Reports Section -->
+        <div style="page-break-before: always; margin-top: 40px;">
+          <div style="text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 20px; border-radius: 10px;">
+            <h1>COMPLETE REPORTS - ALL ENTRIES</h1>
+            <p style="color: #ffeb3b; font-weight: bold;">INCLUDES DELETED ENTRIES AND COMPLETE HISTORICAL DATA</p>
+          </div>
+        </div>
+
+        <!-- Complete Sales Report with Deleted Entries -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">COMPLETE SALES REPORT - ALL ENTRIES</h2>
+          <p><strong>Total Sales Records:</strong> ${
+            allSales.length
+          } (including ${deletedSalesCount} deleted entries)</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem;">
+            <thead>
+              <tr style="background-color: #4a6fa5; color: white;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Status</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Date</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Type</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Item</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Quantity</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Amount</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Payment</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Sale Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allSales
+                .slice()
+                .reverse()
+                .map(
+                  (sale) => `
+                <tr style="border-bottom: 1px solid #ddd; ${
+                  sale.deleted ? "background-color: #ffebee;" : ""
+                }">
+                  <td style="padding: 8px; border: 1px solid #ddd; color: ${
+                    sale.deleted ? "#d32f2f" : "#388e3c"
+                  }; font-weight: bold;">
+                    ${sale.deleted ? "❌ DELETED" : "✅ ACTIVE"}
+                  </td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${new Date(
+                    sale.timestamp
+                  ).toLocaleDateString()}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    sale.type
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    sale.itemName
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    sale.quantity
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${sale.amount.toFixed(
+                    2
+                  )} PKR</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    sale.paymentMethod
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd; color: ${
+                    sale.isCredit ? "#ffc107" : "#28a745"
+                  }">
+                    ${sale.isCredit ? "CREDIT" : "CASH"}
+                  </td>
+                </tr>
+                ${
+                  sale.deleted
+                    ? `
+                <tr style="background-color: #ffebee;">
+                  <td colspan="8" style="padding: 5px 8px; border: 1px solid #ddd; color: #d32f2f; font-size: 0.7em;">
+                    🗑️ Deleted on: ${
+                      sale.deletedAt
+                        ? new Date(sale.deletedAt).toLocaleString()
+                        : "Unknown"
+                    }
+                  </td>
+                </tr>
+                `
+                    : ""
+                }
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Expenses Report -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">EXPENSES REPORT</h2>
+          <p><strong>Total Expenses:</strong> ${
+            allExpenses.length
+          } transactions</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem;">
+            <thead>
+              <tr style="background-color: #dc3545; color: white;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Date</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Description</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Category</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allExpenses
+                .slice()
+                .reverse()
+                .map(
+                  (expense) => `
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px; border: 1px solid #ddd;">${new Date(
+                    expense.timestamp
+                  ).toLocaleDateString()}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    expense.description
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    expense.category
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${expense.amount.toFixed(
+                    2
+                  )} PKR</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Creditors Report -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">CREDITORS REPORT</h2>
+          <p><strong>Total Creditors:</strong> ${
+            allCreditors.length
+          } customers</p>
+          <p><strong>Total Amount Owed:</strong> ${totalOwed.toFixed(2)} PKR</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem;">
+            <thead>
+              <tr style="background-color: #ffc107; color: black;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Customer Name</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Phone</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Amount Owed</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Purchases</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allCreditors
+                .map(
+                  (creditor) => `
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    creditor.name
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    creditor.phone
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${creditor.amountOwed.toFixed(
+                    2
+                  )} PKR</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    creditor.purchases.length
+                  } items</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Payments History -->
+        <div style="margin-bottom: 30px;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">PAYMENTS HISTORY</h2>
+          <p><strong>Total Payments Received:</strong> ${
+            allPayments.length
+          } payments</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.8rem;">
+            <thead>
+              <tr style="background-color: #28a745; color: white;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Date</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Customer</th>
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allPayments
+                .slice()
+                .reverse()
+                .map(
+                  (payment) => `
+                <tr style="border-bottom: 1px solid #ddd;">
+                  <td style="padding: 8px; border: 1px solid #ddd;">${new Date(
+                    payment.timestamp
+                  ).toLocaleDateString()}</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${
+                    payment.creditorName
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${payment.amount.toFixed(
+                    2
+                  )} PKR</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #4a6fa5; color: #6c757d;">
+          <p>Cloudify Business Management System - Comprehensive Report with Complete Data</p>
+          <p>Includes totals dashboard and complete reports with all historical entries</p>
+          <p>Generated automatically on ${new Date().toLocaleString()}</p>
+        </div>
+      </div>
+    `;
+
+    // Create temporary element for PDF generation
+    const tempElement = document.createElement("div");
+    tempElement.innerHTML = comprehensiveHTML;
+    document.body.appendChild(tempElement);
+
+    const opt = {
+      margin: 10,
+      filename: `cloudify_complete_business_report_${new Date()
+        .toISOString()
+        .slice(0, 10)}.pdf`,
+      image: { type: "jpeg" as const, quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        backgroundColor: "#FFFFFF",
+        useCORS: true,
+        logging: false,
+      },
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait" as const,
+      },
+    };
+
+    try {
+      await html2pdf().set(opt).from(tempElement).save();
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF. Please try again.");
+    } finally {
+      // Clean up temporary element
+      document.body.removeChild(tempElement);
+    }
   };
 
   if (!isAuthenticated) {
