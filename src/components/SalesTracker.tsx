@@ -19,11 +19,21 @@ export default function SalesTracker() {
   const [customItem, setCustomItem] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
+  const [suggestedAmount, setSuggestedAmount] = useState<string>(""); // For showing suggestion
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [isCredit, setIsCredit] = useState<boolean>(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  // Refs for form fields
+  const typeSelectRef = useRef<HTMLSelectElement>(null);
+  const quantityRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const customItemRef = useRef<HTMLInputElement>(null);
+  const customerNameRef = useRef<HTMLInputElement>(null);
+  const customerPhoneRef = useRef<HTMLInputElement>(null);
+
   const [modal, setModal] = useState<
     Omit<ModalProps, "onClose" | "onConfirm"> & {
       isOpen: boolean;
@@ -36,17 +46,50 @@ export default function SalesTracker() {
     type: "alert",
   });
 
-  // Refs for form fields
-  const quantityRef = useRef<HTMLInputElement>(null);
-  const amountRef = useRef<HTMLInputElement>(null);
-  const customItemRef = useRef<HTMLInputElement>(null);
-  const customerNameRef = useRef<HTMLInputElement>(null);
-  const customerPhoneRef = useRef<HTMLInputElement>(null);
+  // Price multipliers
+  const FRONTEND_MULTIPLIERS = {
+    refill: 100,
+    coil: 800,
+  };
+
+  const BACKEND_MULTIPLIERS = {
+    refill: 60,
+    coil: 600,
+  };
 
   useEffect(() => {
     const activeSales = getActiveSales();
     setSales(activeSales);
+    // Focus on type field on initial load
+    setTimeout(() => {
+      typeSelectRef.current?.focus();
+    }, 100);
   }, []);
+
+  // Update SUGGESTED amount when quantity changes for refill and coil
+  useEffect(() => {
+    if (type === "refill" || type === "coil") {
+      const qty = parseFloat(quantity) || 0;
+      if (qty > 0) {
+        const frontendMultiplier =
+          FRONTEND_MULTIPLIERS[type as keyof typeof FRONTEND_MULTIPLIERS];
+        const calculatedAmount = qty * frontendMultiplier;
+        setSuggestedAmount(calculatedAmount.toString());
+
+        // Only auto-fill amount if it's empty (first time)
+        if (!amount && editingIndex === null) {
+          setAmount(calculatedAmount.toString());
+        }
+      } else {
+        setSuggestedAmount("");
+        if (!amount) {
+          setAmount("");
+        }
+      }
+    } else {
+      setSuggestedAmount("");
+    }
+  }, [quantity, type]);
 
   // Phone number validation
   const isValidPhoneNumber = (phone: string): boolean => {
@@ -57,9 +100,19 @@ export default function SalesTracker() {
   // Create stable callback for validation
   const validateAndSaveSale = useCallback((): void => {
     const finalItemName =
-      type === "device" || type === "puff" ? customItem : itemName;
+      type === "device" || type === "puff" || type === "repairing"
+        ? customItem
+        : itemName;
     const saleQuantity = parseFloat(quantity);
     const saleAmount = parseFloat(amount);
+
+    // Calculate backend amount based on quantity and backend multipliers
+    let saleBackendAmount: number = 0;
+    if (type === "refill") {
+      saleBackendAmount = saleQuantity * BACKEND_MULTIPLIERS.refill;
+    } else if (type === "coil") {
+      saleBackendAmount = saleQuantity * BACKEND_MULTIPLIERS.coil;
+    }
 
     // Basic validation
     if (
@@ -67,7 +120,9 @@ export default function SalesTracker() {
       !quantity ||
       !amount ||
       isNaN(saleQuantity) ||
-      isNaN(saleAmount)
+      saleQuantity <= 0 ||
+      isNaN(saleAmount) ||
+      saleAmount <= 0
     ) {
       showModal({
         isOpen: true,
@@ -107,9 +162,9 @@ export default function SalesTracker() {
 
     // All validations passed, add or update the sale
     if (editingIndex !== null) {
-      updateSale();
+      updateSale(saleAmount, saleBackendAmount);
     } else {
-      addSale();
+      addSale(saleAmount, saleBackendAmount);
     }
   }, [
     type,
@@ -122,7 +177,7 @@ export default function SalesTracker() {
     customerPhone,
     editingIndex,
     paymentMethod,
-  ]); // Added paymentMethod to dependencies
+  ]);
 
   // Handle phone number input with validation
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -132,10 +187,9 @@ export default function SalesTracker() {
     }
   };
 
-  // Handle Enter key press - FIXED VERSION with stable dependencies
+  // Handle Enter key press
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Only handle Enter key
       if (e.key !== "Enter") return;
 
       // If modal is open, close it or confirm action
@@ -157,7 +211,6 @@ export default function SalesTracker() {
           activeElement.tagName === "TEXTAREA" ||
           activeElement.tagName === "SELECT")
       ) {
-        // Check if we're in a form field that should trigger on Enter
         const isFormField =
           activeElement.closest("form") ||
           activeElement.getAttribute("role") === "textbox" ||
@@ -179,7 +232,7 @@ export default function SalesTracker() {
     return () => {
       document.removeEventListener("keydown", handleKeyPress);
     };
-  }, [modal.isOpen, modal.type, modal.onConfirm, validateAndSaveSale]); // Fixed dependencies
+  }, [modal.isOpen, modal.type, modal.onConfirm, validateAndSaveSale]);
 
   const showModal = (
     config: Omit<ModalProps, "onClose" | "onConfirm"> & {
@@ -194,8 +247,9 @@ export default function SalesTracker() {
   };
 
   const updateItemField = (newType: string): void => {
-    if (newType === "device" || newType === "puff") {
+    if (newType === "device" || newType === "puff" || newType === "repairing") {
       setItemName("");
+      setCustomItem("");
     } else {
       // Set default item names based on type
       if (newType === "refill") {
@@ -205,7 +259,12 @@ export default function SalesTracker() {
       } else {
         setItemName("VMate");
       }
+      setCustomItem("");
     }
+
+    // Reset amounts when type changes
+    setAmount("");
+    setSuggestedAmount("");
   };
 
   const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>): void => {
@@ -216,10 +275,18 @@ export default function SalesTracker() {
 
   const editSale = (index: number): void => {
     const sale = sales[index];
+
+    // Scroll to top of the page
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     setType(sale.type);
 
     // Set item name based on sale type
-    if (sale.type === "device" || sale.type === "puff") {
+    if (
+      sale.type === "device" ||
+      sale.type === "puff" ||
+      sale.type === "repairing"
+    ) {
       setCustomItem(sale.itemName);
       setItemName("");
     } else {
@@ -229,13 +296,26 @@ export default function SalesTracker() {
 
     setQuantity(sale.quantity.toString());
     setAmount(sale.amount.toString());
-    setPaymentMethod(sale.paymentMethod); // This should set the correct payment method
+
+    // Calculate and set suggested amount for display only
+    if (sale.type === "refill" || sale.type === "coil") {
+      const multiplier =
+        FRONTEND_MULTIPLIERS[sale.type as keyof typeof FRONTEND_MULTIPLIERS];
+      setSuggestedAmount((sale.quantity * multiplier).toString());
+    } else {
+      setSuggestedAmount("");
+    }
+
+    setPaymentMethod(sale.paymentMethod);
     setIsCredit(sale.isCredit);
     setCustomerName(sale.customerName);
     setCustomerPhone(sale.customerPhone);
     setEditingIndex(index);
 
-    console.log("Editing sale with payment method:", sale.paymentMethod); // Debug log
+    // Focus on the type select field after a brief delay to allow state to update
+    setTimeout(() => {
+      typeSelectRef.current?.focus();
+    }, 50);
   };
 
   const cancelEdit = (): void => {
@@ -249,25 +329,33 @@ export default function SalesTracker() {
     setCustomItem("");
     setQuantity("");
     setAmount("");
+    setSuggestedAmount("");
     setPaymentMethod("cash");
     setIsCredit(false);
     setCustomerName("");
     setCustomerPhone("");
     setEditingIndex(null);
+
+    // Focus on the type select field after reset
+    setTimeout(() => {
+      typeSelectRef.current?.focus();
+    }, 50);
   };
 
-  const addSale = (): void => {
+  const addSale = (saleAmount: number, saleBackendAmount: number): void => {
     const finalItemName =
-      type === "device" || type === "puff" ? customItem : itemName;
+      type === "device" || type === "puff" || type === "repairing"
+        ? customItem
+        : itemName;
     const saleQuantity = parseFloat(quantity);
-    const saleAmount = parseFloat(amount);
 
     const newSale: Sale = {
       type,
       itemName: finalItemName,
       quantity: saleQuantity,
-      amount: saleAmount,
-      paymentMethod, // This should include the selected payment method
+      amount: saleAmount, // This is the USER-ENTERED amount
+      backendAmount: saleBackendAmount, // This is auto-calculated (60/600)
+      paymentMethod,
       timestamp: new Date().toISOString(),
       isCredit,
       customerName: isCredit ? customerName.trim() : "",
@@ -275,14 +363,19 @@ export default function SalesTracker() {
       isPaid: !isCredit,
     };
 
-    console.log("Adding sale with payment method:", paymentMethod); // Debug log
+    console.log(
+      "Adding sale - User Amount:",
+      saleAmount,
+      "Backend Amount:",
+      saleBackendAmount
+    );
 
-    // If it's a credit sale, add to creditors
+    // If it's a credit sale, add to creditors using USER amount
     if (isCredit && customerName && customerPhone) {
       addToCreditors(
         finalItemName,
         saleQuantity,
-        saleAmount,
+        saleAmount, // Use user amount for creditors
         customerName.trim(),
         customerPhone.trim()
       );
@@ -292,7 +385,7 @@ export default function SalesTracker() {
     setSales(updatedSales);
     saveSales(updatedSales);
 
-    resetForm();
+    resetForm(); // This will reset the form and focus on type field
 
     showModal({
       isOpen: true,
@@ -302,31 +395,38 @@ export default function SalesTracker() {
     });
   };
 
-  const updateSale = (): void => {
+  const updateSale = (saleAmount: number, saleBackendAmount: number): void => {
     if (editingIndex === null) return;
 
     const originalSale = sales[editingIndex];
     const finalItemName =
-      type === "device" || type === "puff" ? customItem : itemName;
+      type === "device" || type === "puff" || type === "repairing"
+        ? customItem
+        : itemName;
     const saleQuantity = parseFloat(quantity);
-    const saleAmount = parseFloat(amount);
 
     const updatedSale: Sale = {
       type,
       itemName: finalItemName,
       quantity: saleQuantity,
-      amount: saleAmount,
-      paymentMethod, // This should include the updated payment method
-      timestamp: originalSale.timestamp, // Keep original timestamp
+      amount: saleAmount, // Use user-entered amount
+      backendAmount: saleBackendAmount,
+      paymentMethod,
+      timestamp: originalSale.timestamp,
       isCredit,
       customerName: isCredit ? customerName.trim() : "",
       customerPhone: isCredit ? customerPhone.trim() : "",
       isPaid: !isCredit,
     };
 
-    console.log("Updating sale with payment method:", paymentMethod); // Debug log
+    console.log(
+      "Updating sale - User Amount:",
+      saleAmount,
+      "Backend Amount:",
+      saleBackendAmount
+    );
 
-    // Handle creditor updates
+    // Handle creditor updates using USER amount
     handleCreditorUpdate(
       originalSale,
       updatedSale,
@@ -340,7 +440,7 @@ export default function SalesTracker() {
     setSales(updatedSales);
     saveSales(updatedSales);
 
-    resetForm();
+    resetForm(); // This will reset the form and focus on type field
 
     showModal({
       isOpen: true,
@@ -393,7 +493,7 @@ export default function SalesTracker() {
       const creditor = creditors[creditorIndex];
       creditor.amountOwed -= originalSale.amount;
 
-      // Remove the purchase (simplified - in real app you might want more specific matching)
+      // Remove the purchase
       creditor.purchases = creditor.purchases.filter(
         (p) =>
           !(
@@ -478,8 +578,8 @@ export default function SalesTracker() {
             ? { ...s, deleted: true, deletedAt: new Date().toISOString() }
             : s
         );
-        setSales(updatedSales.filter((s) => !s.deleted)); // Remove from view
-        saveSales(updatedSales); // Save with deleted flag
+        setSales(updatedSales.filter((s) => !s.deleted));
+        saveSales(updatedSales);
 
         showModal({
           isOpen: true,
@@ -524,6 +624,7 @@ export default function SalesTracker() {
       coil: "Coil",
       device: "Device",
       puff: "Puff",
+      repairing: "Repairing",
       flavourbottle: "Flavour Bottle",
     };
     return typeMap[type] || type;
@@ -544,12 +645,21 @@ export default function SalesTracker() {
     switch (saleType) {
       case "refill":
       case "flavourbottle":
-        return "#ff7e5f"; // Same color for refill and flavour bottle
+        return "#ff7e5f";
       case "puff":
         return "#9c27b0";
+      case "repairing":
+        return "#2196f3";
+      case "coil":
+        return "#ff9800";
       default:
         return "#4a6fa5";
     }
+  };
+
+  // Handle amount change manually
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setAmount(e.target.value);
   };
 
   return (
@@ -570,18 +680,25 @@ export default function SalesTracker() {
       <div style={formGridStyle}>
         <div style={formGroupStyle}>
           <label style={labelStyle}>Sale Type</label>
-          <select value={type} onChange={handleTypeChange} style={inputStyle}>
-            <option value="refill">Refil</option>
+          <select
+            ref={typeSelectRef}
+            value={type}
+            onChange={handleTypeChange}
+            style={inputStyle}
+            autoFocus
+          >
+            <option value="refill">Refill</option>
             <option value="coil">Coil</option>
             <option value="device">Device</option>
             <option value="puff">Puff</option>
+            <option value="repairing">Repairing</option>
             <option value="flavourbottle">Flavour Bottle</option>
           </select>
         </div>
 
         <div style={formGroupStyle}>
           <label style={labelStyle}>Item Name</label>
-          {type === "device" || type === "puff" ? (
+          {type === "device" || type === "puff" || type === "repairing" ? (
             <input
               ref={customItemRef}
               type="text"
@@ -590,7 +707,11 @@ export default function SalesTracker() {
                 setCustomItem(e.target.value)
               }
               placeholder={
-                type === "puff" ? "Enter puff name" : "Enter device name"
+                type === "puff"
+                  ? "Enter puff name"
+                  : type === "repairing"
+                  ? "Enter repair service name"
+                  : "Enter device name"
               }
               style={inputStyle}
             />
@@ -631,7 +752,8 @@ export default function SalesTracker() {
           <input
             ref={quantityRef}
             type="number"
-            step="0.1"
+            step={type === "refill" ? "0.1" : "1"}
+            min="0"
             value={quantity}
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setQuantity(e.target.value)
@@ -640,6 +762,14 @@ export default function SalesTracker() {
             style={inputStyle}
             required
           />
+          {(type === "refill" || type === "coil") && quantity && (
+            <small style={noteStyle}>
+              Suggested: {quantity} × {type === "refill" ? "100" : "800"} ={" "}
+              {suggestedAmount} PKR
+              <br />
+              <em>(You can change the amount below)</em>
+            </small>
+          )}
         </div>
 
         <div style={formGroupStyle}>
@@ -649,13 +779,31 @@ export default function SalesTracker() {
             type="number"
             step="0.01"
             value={amount}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setAmount(e.target.value)
-            }
+            onChange={handleAmountChange}
             placeholder="Enter amount"
             style={inputStyle}
             required
           />
+          {(type === "refill" || type === "coil") &&
+            amount &&
+            suggestedAmount && (
+              <small
+                style={amountNoteStyle(
+                  parseFloat(amount),
+                  parseFloat(suggestedAmount)
+                )}
+              >
+                {parseFloat(amount) === parseFloat(suggestedAmount)
+                  ? "✓ Using suggested amount"
+                  : parseFloat(amount) < parseFloat(suggestedAmount)
+                  ? `↓ Discount: ${(
+                      parseFloat(suggestedAmount) - parseFloat(amount)
+                    ).toFixed(2)} PKR`
+                  : `↑ Extra: ${(
+                      parseFloat(amount) - parseFloat(suggestedAmount)
+                    ).toFixed(2)} PKR`}
+              </small>
+            )}
         </div>
 
         <div style={formGroupStyle}>
@@ -781,6 +929,17 @@ export default function SalesTracker() {
               </p>
               <p>
                 <span style={labelTextStyle}>Quantity:</span> {sale.quantity}
+                {(sale.type === "refill" || sale.type === "coil") && (
+                  <small
+                    style={{
+                      marginLeft: "10px",
+                      color: "#666",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    (Rate: {sale.amount / sale.quantity} PKR each)
+                  </small>
+                )}
               </p>
               <p>
                 <span style={labelTextStyle}>Amount:</span>{" "}
@@ -824,7 +983,7 @@ export default function SalesTracker() {
   );
 }
 
-// Keep all your existing styles the same...
+// ==================== STYLES ====================
 const containerStyle: React.CSSProperties = {
   padding: "1rem",
   maxWidth: "1400px",
@@ -860,6 +1019,29 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "6px",
   boxSizing: "border-box" as const,
 };
+
+const noteStyle: React.CSSProperties = {
+  display: "block",
+  marginTop: "5px",
+  fontSize: "0.8rem",
+  color: "#666",
+  fontStyle: "italic",
+  lineHeight: "1.4",
+};
+
+const amountNoteStyle = (actual: number, suggested: number) => ({
+  display: "block",
+  marginTop: "5px",
+  fontSize: "0.8rem",
+  color:
+    actual === suggested
+      ? "#28a745"
+      : actual < suggested
+      ? "#dc3545"
+      : "#ffc107",
+  fontStyle: "italic",
+  lineHeight: "1.4",
+});
 
 const checkboxLabelStyle: React.CSSProperties = {
   display: "flex",
