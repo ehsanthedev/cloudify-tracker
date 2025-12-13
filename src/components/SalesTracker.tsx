@@ -19,13 +19,15 @@ export default function SalesTracker() {
   const [customItem, setCustomItem] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
-  const [suggestedAmount, setSuggestedAmount] = useState<string>(""); // For showing suggestion
+  const [suggestedAmount, setSuggestedAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [isCredit, setIsCredit] = useState<boolean>(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [customerPhone, setCustomerPhone] = useState<string>("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
+  const [isAmountManuallyChanged, setIsAmountManuallyChanged] =
+    useState<boolean>(false);
 
   // Refs for form fields
   const typeSelectRef = useRef<HTMLSelectElement>(null);
@@ -61,14 +63,13 @@ export default function SalesTracker() {
   useEffect(() => {
     const activeSales = getActiveSales();
     setSales(activeSales);
-    // Focus on type field on initial load
     setTimeout(() => {
       typeSelectRef.current?.focus();
-      setIsFormVisible(true); // Trigger form animation
+      setIsFormVisible(true);
     }, 100);
   }, []);
 
-  // Update SUGGESTED amount when quantity changes for refill and coil
+  // Calculate suggested amount when quantity changes for refill and coil
   useEffect(() => {
     if (type === "refill" || type === "coil") {
       const qty = parseFloat(quantity) || 0;
@@ -78,20 +79,22 @@ export default function SalesTracker() {
         const calculatedAmount = qty * frontendMultiplier;
         setSuggestedAmount(calculatedAmount.toString());
 
-        // Only auto-fill amount if it's empty (first time)
-        if (!amount && editingIndex === null) {
+        // Auto-fill amount if it hasn't been manually changed and we're not editing
+        if (!isAmountManuallyChanged && editingIndex === null) {
           setAmount(calculatedAmount.toString());
         }
       } else {
         setSuggestedAmount("");
-        if (!amount) {
+        // Clear amount when quantity is cleared
+        if (quantity === "") {
           setAmount("");
+          setIsAmountManuallyChanged(false);
         }
       }
     } else {
       setSuggestedAmount("");
     }
-  }, [quantity, type]);
+  }, [quantity, type, editingIndex, isAmountManuallyChanged]);
 
   // Phone number validation
   const isValidPhoneNumber = (phone: string): boolean => {
@@ -137,7 +140,6 @@ export default function SalesTracker() {
 
     // Credit sale validation
     if (isCredit) {
-      // Check if customer name and phone are provided
       if (!customerName.trim() || !customerPhone.trim()) {
         showModal({
           isOpen: true,
@@ -149,7 +151,6 @@ export default function SalesTracker() {
         return;
       }
 
-      // Validate phone number format (exactly 11 digits)
       if (!isValidPhoneNumber(customerPhone)) {
         showModal({
           isOpen: true,
@@ -183,7 +184,7 @@ export default function SalesTracker() {
 
   // Handle phone number input with validation
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+    const value = e.target.value.replace(/\D/g, "");
     if (value.length <= 11) {
       setCustomerPhone(value);
     }
@@ -194,7 +195,6 @@ export default function SalesTracker() {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
 
-      // If modal is open, close it or confirm action
       if (modal.isOpen) {
         e.preventDefault();
         if (modal.type === "confirm" && modal.onConfirm) {
@@ -205,7 +205,6 @@ export default function SalesTracker() {
         return;
       }
 
-      // Don't trigger if user is typing in input fields
       const activeElement = document.activeElement;
       if (
         activeElement &&
@@ -225,7 +224,6 @@ export default function SalesTracker() {
         return;
       }
 
-      // For other cases, validate and save
       e.preventDefault();
       validateAndSaveSale();
     };
@@ -253,7 +251,6 @@ export default function SalesTracker() {
       setItemName("");
       setCustomItem("");
     } else {
-      // Set default item names based on type
       if (newType === "refill") {
         setItemName("Pineapple Series");
       } else if (newType === "flavourbottle") {
@@ -264,9 +261,11 @@ export default function SalesTracker() {
       setCustomItem("");
     }
 
-    // Reset amounts when type changes
+    // Reset amounts and flags when type changes
+    setQuantity("");
     setAmount("");
     setSuggestedAmount("");
+    setIsAmountManuallyChanged(false);
   };
 
   const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>): void => {
@@ -275,15 +274,33 @@ export default function SalesTracker() {
     updateItemField(newType);
   };
 
+  const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const value = e.target.value;
+    setQuantity(value);
+
+    // If quantity is being cleared, clear amount as well
+    if (value === "") {
+      setAmount("");
+      setIsAmountManuallyChanged(false);
+    }
+  };
+
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const value = e.target.value;
+    setAmount(value);
+    // Mark as manually changed if user types anything
+    if (value !== "" && !isAmountManuallyChanged) {
+      setIsAmountManuallyChanged(true);
+    }
+  };
+
   const editSale = (index: number): void => {
     const sale = sales[index];
 
-    // Scroll to top of the page
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     setType(sale.type);
 
-    // Set item name based on sale type
     if (
       sale.type === "device" ||
       sale.type === "puff" ||
@@ -298,8 +315,8 @@ export default function SalesTracker() {
 
     setQuantity(sale.quantity.toString());
     setAmount(sale.amount.toString());
+    setIsAmountManuallyChanged(true); // Amount is set from existing sale, so mark as manually changed
 
-    // Calculate and set suggested amount for display only
     if (sale.type === "refill" || sale.type === "coil") {
       const multiplier =
         FRONTEND_MULTIPLIERS[sale.type as keyof typeof FRONTEND_MULTIPLIERS];
@@ -314,7 +331,6 @@ export default function SalesTracker() {
     setCustomerPhone(sale.customerPhone);
     setEditingIndex(index);
 
-    // Focus on the type select field after a brief delay to allow state to update
     setTimeout(() => {
       typeSelectRef.current?.focus();
     }, 50);
@@ -337,8 +353,8 @@ export default function SalesTracker() {
     setCustomerName("");
     setCustomerPhone("");
     setEditingIndex(null);
+    setIsAmountManuallyChanged(false);
 
-    // Focus on the type select field after reset
     setTimeout(() => {
       typeSelectRef.current?.focus();
     }, 50);
@@ -355,8 +371,8 @@ export default function SalesTracker() {
       type,
       itemName: finalItemName,
       quantity: saleQuantity,
-      amount: saleAmount, // This is the USER-ENTERED amount
-      backendAmount: saleBackendAmount, // This is auto-calculated (60/600)
+      amount: saleAmount,
+      backendAmount: saleBackendAmount,
       paymentMethod,
       timestamp: new Date().toISOString(),
       isCredit,
@@ -372,12 +388,11 @@ export default function SalesTracker() {
       saleBackendAmount
     );
 
-    // If it's a credit sale, add to creditors using USER amount
     if (isCredit && customerName && customerPhone) {
       addToCreditors(
         finalItemName,
         saleQuantity,
-        saleAmount, // Use user amount for creditors
+        saleAmount,
         customerName.trim(),
         customerPhone.trim()
       );
@@ -387,7 +402,7 @@ export default function SalesTracker() {
     setSales(updatedSales);
     saveSales(updatedSales);
 
-    resetForm(); // This will reset the form and focus on type field
+    resetForm();
 
     showModal({
       isOpen: true,
@@ -411,7 +426,7 @@ export default function SalesTracker() {
       type,
       itemName: finalItemName,
       quantity: saleQuantity,
-      amount: saleAmount, // Use user-entered amount
+      amount: saleAmount,
       backendAmount: saleBackendAmount,
       paymentMethod,
       timestamp: originalSale.timestamp,
@@ -428,7 +443,6 @@ export default function SalesTracker() {
       saleBackendAmount
     );
 
-    // Handle creditor updates using USER amount
     handleCreditorUpdate(
       originalSale,
       updatedSale,
@@ -442,7 +456,7 @@ export default function SalesTracker() {
     setSales(updatedSales);
     saveSales(updatedSales);
 
-    resetForm(); // This will reset the form and focus on type field
+    resetForm();
 
     showModal({
       isOpen: true,
@@ -495,7 +509,6 @@ export default function SalesTracker() {
       const creditor = creditors[creditorIndex];
       creditor.amountOwed -= originalSale.amount;
 
-      // Remove the purchase
       creditor.purchases = creditor.purchases.filter(
         (p) =>
           !(
@@ -505,7 +518,6 @@ export default function SalesTracker() {
           )
       );
 
-      // Remove creditor if no amount owed and no purchases
       if (creditor.amountOwed <= 0 && creditor.purchases.length === 0) {
         creditors.splice(creditorIndex, 1);
       }
@@ -521,9 +533,7 @@ export default function SalesTracker() {
     quantity: number,
     amount: number
   ) => {
-    // Case 1: Original was credit, updated is credit (same or different customer)
     if (originalSale.isCredit && updatedSale.isCredit) {
-      // If customer details changed, remove from old creditor and add to new
       if (originalSale.customerPhone !== updatedSale.customerPhone) {
         removeFromCreditors(originalSale);
         addToCreditors(
@@ -534,7 +544,6 @@ export default function SalesTracker() {
           updatedSale.customerPhone
         );
       } else {
-        // Same customer, update creditor amount
         const creditors: Creditor[] = getCreditors();
         const creditor = creditors.find(
           (c: Creditor) => c.phone === originalSale.customerPhone
@@ -545,13 +554,9 @@ export default function SalesTracker() {
           saveCreditors(creditors);
         }
       }
-    }
-    // Case 2: Original was credit, updated is cash - remove from creditors
-    else if (originalSale.isCredit && !updatedSale.isCredit) {
+    } else if (originalSale.isCredit && !updatedSale.isCredit) {
       removeFromCreditors(originalSale);
-    }
-    // Case 3: Original was cash, updated is credit - add to creditors
-    else if (!originalSale.isCredit && updatedSale.isCredit) {
+    } else if (!originalSale.isCredit && updatedSale.isCredit) {
       addToCreditors(
         itemName,
         quantity,
@@ -560,7 +565,6 @@ export default function SalesTracker() {
         updatedSale.customerPhone
       );
     }
-    // Case 4: Both cash - no creditor changes needed
   };
 
   const deleteSale = (index: number): void => {
@@ -574,7 +578,6 @@ export default function SalesTracker() {
       confirmText: "Delete",
       cancelText: "Cancel",
       onConfirm: () => {
-        // Use soft delete instead of removing from array
         const updatedSales = sales.map((s, i) =>
           i === index
             ? { ...s, deleted: true, deletedAt: new Date().toISOString() }
@@ -603,10 +606,7 @@ export default function SalesTracker() {
       confirmText: "Delete All",
       cancelText: "Cancel",
       onConfirm: () => {
-        // Permanently delete all sales from storage
         permanentDeleteAllSales();
-
-        // Update state to empty array
         setSales([]);
 
         showModal({
@@ -659,14 +659,8 @@ export default function SalesTracker() {
     }
   };
 
-  // Handle amount change manually
-  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    setAmount(e.target.value);
-  };
-
   return (
     <div style={containerStyle}>
-      {/* Add Global CSS for animations */}
       <style jsx global>{`
         @keyframes fadeInUp {
           from {
@@ -841,7 +835,6 @@ export default function SalesTracker() {
         }
       `}</style>
 
-      {/* Modal Component */}
       <Modal
         isOpen={modal.isOpen}
         onClose={hideModal}
@@ -853,7 +846,6 @@ export default function SalesTracker() {
         cancelText={modal.cancelText}
       />
 
-      {/* Form Grid with animation */}
       <div
         style={{
           ...formGridStyle,
@@ -943,9 +935,7 @@ export default function SalesTracker() {
             step={type === "refill" ? "0.1" : "1"}
             min="0"
             value={quantity}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setQuantity(e.target.value)
-            }
+            onChange={handleQuantityChange}
             placeholder="Enter quantity"
             style={inputStyle}
             required
