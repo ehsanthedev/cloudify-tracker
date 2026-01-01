@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, useMemo } from "react";
 import {
   getActiveSales,
   getAllSales,
@@ -56,6 +56,180 @@ export default function TotalsPage() {
       }, 500);
     }
   }, [isAuthenticated]);
+
+  // Calculate sold items by category
+  const soldItemsSummary = useMemo(() => {
+    const summary = {
+      coils: [] as { name: string; quantity: number; amount: number }[],
+      devices: [] as { name: string; quantity: number; amount: number }[],
+      repairs: [] as { name: string; quantity: number; amount: number }[],
+      puffs: [] as { name: string; quantity: number; amount: number }[],
+      flavourBottles: [] as {
+        name: string;
+        quantity: number;
+        amount: number;
+      }[],
+      refills: [] as { name: string; quantity: number; amount: number }[],
+    };
+
+    sales.forEach((sale) => {
+      const item = {
+        name: sale.itemName,
+        quantity: sale.quantity,
+        amount: sale.amount,
+      };
+
+      switch (sale.type) {
+        case "coil":
+          const existingCoil = summary.coils.find(
+            (c) => c.name === sale.itemName
+          );
+          if (existingCoil) {
+            existingCoil.quantity += sale.quantity;
+            existingCoil.amount += sale.amount;
+          } else {
+            summary.coils.push(item);
+          }
+          break;
+
+        case "device":
+          const existingDevice = summary.devices.find(
+            (d) => d.name === sale.itemName
+          );
+          if (existingDevice) {
+            existingDevice.quantity += sale.quantity;
+            existingDevice.amount += sale.amount;
+          } else {
+            summary.devices.push(item);
+          }
+          break;
+
+        case "repairing":
+          const existingRepair = summary.repairs.find(
+            (r) => r.name === sale.itemName
+          );
+          if (existingRepair) {
+            existingRepair.quantity += sale.quantity;
+            existingRepair.amount += sale.amount;
+          } else {
+            summary.repairs.push(item);
+          }
+          break;
+
+        case "puff":
+          const existingPuff = summary.puffs.find(
+            (p) => p.name === sale.itemName
+          );
+          if (existingPuff) {
+            existingPuff.quantity += sale.quantity;
+            existingPuff.amount += sale.amount;
+          } else {
+            summary.puffs.push(item);
+          }
+          break;
+
+        case "flavourbottle":
+          const existingFlavour = summary.flavourBottles.find(
+            (f) => f.name === sale.itemName
+          );
+          if (existingFlavour) {
+            existingFlavour.quantity += sale.quantity;
+            existingFlavour.amount += sale.amount;
+          } else {
+            summary.flavourBottles.push(item);
+          }
+          break;
+
+        case "refill":
+          const existingRefill = summary.refills.find(
+            (r) => r.name === sale.itemName
+          );
+          if (existingRefill) {
+            existingRefill.quantity += sale.quantity;
+            existingRefill.amount += sale.amount;
+          } else {
+            summary.refills.push(item);
+          }
+          break;
+      }
+    });
+
+    // Sort each category by amount (highest first)
+    summary.coils.sort((a, b) => b.amount - a.amount);
+    summary.devices.sort((a, b) => b.amount - a.amount);
+    summary.repairs.sort((a, b) => b.amount - a.amount);
+    summary.puffs.sort((a, b) => b.amount - a.amount);
+    summary.flavourBottles.sort((a, b) => b.amount - a.amount);
+    summary.refills.sort((a, b) => b.amount - a.amount);
+
+    return summary;
+  }, [sales]);
+
+  // Calculate totals for each category
+  const categoryTotals = useMemo(() => {
+    return {
+      coils: {
+        totalQuantity: soldItemsSummary.coils.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.coils.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+      devices: {
+        totalQuantity: soldItemsSummary.devices.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.devices.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+      repairs: {
+        totalQuantity: soldItemsSummary.repairs.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.repairs.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+      puffs: {
+        totalQuantity: soldItemsSummary.puffs.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.puffs.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+      flavourBottles: {
+        totalQuantity: soldItemsSummary.flavourBottles.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.flavourBottles.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+      refills: {
+        totalQuantity: soldItemsSummary.refills.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        ),
+        totalAmount: soldItemsSummary.refills.reduce(
+          (sum, item) => sum + item.amount,
+          0
+        ),
+      },
+    };
+  }, [soldItemsSummary]);
 
   const calculateAndAnimateValues = (
     sales: Sale[],
@@ -207,7 +381,7 @@ export default function TotalsPage() {
     0
   );
 
-  // Download PDF function
+  // Update the downloadPDF function to include sold items section
   const downloadPDF = async (): Promise<void> => {
     const html2pdf = (await import("html2pdf.js")).default;
 
@@ -220,7 +394,103 @@ export default function TotalsPage() {
     // Filter active sales for totals calculation (excluding deleted)
     const activeSales = allSales.filter((sale) => !sale.deleted);
 
-    // Calculate totals using active sales only for the dashboard
+    // Calculate sold items summary for PDF
+    const pdfSoldItemsSummary = {
+      coils: [] as { name: string; quantity: number; amount: number }[],
+      devices: [] as { name: string; quantity: number; amount: number }[],
+      repairs: [] as { name: string; quantity: number; amount: number }[],
+      puffs: [] as { name: string; quantity: number; amount: number }[],
+      flavourBottles: [] as {
+        name: string;
+        quantity: number;
+        amount: number;
+      }[],
+      refills: [] as { name: string; quantity: number; amount: number }[],
+    };
+
+    activeSales.forEach((sale) => {
+      const item = {
+        name: sale.itemName,
+        quantity: sale.quantity,
+        amount: sale.amount,
+      };
+
+      switch (sale.type) {
+        case "coil":
+          const existingCoil = pdfSoldItemsSummary.coils.find(
+            (c) => c.name === sale.itemName
+          );
+          if (existingCoil) {
+            existingCoil.quantity += sale.quantity;
+            existingCoil.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.coils.push(item);
+          }
+          break;
+
+        case "device":
+          const existingDevice = pdfSoldItemsSummary.devices.find(
+            (d) => d.name === sale.itemName
+          );
+          if (existingDevice) {
+            existingDevice.quantity += sale.quantity;
+            existingDevice.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.devices.push(item);
+          }
+          break;
+
+        case "repairing":
+          const existingRepair = pdfSoldItemsSummary.repairs.find(
+            (r) => r.name === sale.itemName
+          );
+          if (existingRepair) {
+            existingRepair.quantity += sale.quantity;
+            existingRepair.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.repairs.push(item);
+          }
+          break;
+
+        case "puff":
+          const existingPuff = pdfSoldItemsSummary.puffs.find(
+            (p) => p.name === sale.itemName
+          );
+          if (existingPuff) {
+            existingPuff.quantity += sale.quantity;
+            existingPuff.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.puffs.push(item);
+          }
+          break;
+
+        case "flavourbottle":
+          const existingFlavour = pdfSoldItemsSummary.flavourBottles.find(
+            (f) => f.name === sale.itemName
+          );
+          if (existingFlavour) {
+            existingFlavour.quantity += sale.quantity;
+            existingFlavour.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.flavourBottles.push(item);
+          }
+          break;
+
+        case "refill":
+          const existingRefill = pdfSoldItemsSummary.refills.find(
+            (r) => r.name === sale.itemName
+          );
+          if (existingRefill) {
+            existingRefill.quantity += sale.quantity;
+            existingRefill.amount += sale.amount;
+          } else {
+            pdfSoldItemsSummary.refills.push(item);
+          }
+          break;
+      }
+    });
+
+    // Calculate totals
     const totalSales = activeSales.reduce((sum, sale) => sum + sale.amount, 0);
     const totalCashSales = activeSales
       .filter((sale) => !sale.isCredit && sale.paymentMethod === "cash")
@@ -256,7 +526,7 @@ export default function TotalsPage() {
     // Count deleted sales for the report
     const deletedSalesCount = allSales.filter((sale) => sale.deleted).length;
 
-    // Create comprehensive HTML content that includes both totals and complete reports
+    // Create comprehensive HTML content
     const comprehensiveHTML = `
       <div style="font-family: Arial, sans-serif; padding: 20px;">
         <!-- Header -->
@@ -297,6 +567,291 @@ export default function TotalsPage() {
           </div>
         </div>
 
+        <!-- Sold Items Summary -->
+        <div style="margin-bottom: 30px; page-break-inside: avoid;">
+          <h2 style="color: #4a6fa5; border-bottom: 2px solid #4a6fa5; padding-bottom: 10px;">SOLD ITEMS SUMMARY</h2>
+          
+          <!-- Coils -->
+          ${
+            pdfSoldItemsSummary.coils.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #ff9800; margin-bottom: 15px; background: rgba(255, 152, 0, 0.1); padding: 10px; border-radius: 5px;">
+                Coils - Total: ${pdfSoldItemsSummary.coils.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} items, ${pdfSoldItemsSummary.coils
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #fff3cd;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Coil Name</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.coils
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+          <!-- Devices -->
+          ${
+            pdfSoldItemsSummary.devices.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #2196f3; margin-bottom: 15px; background: rgba(33, 150, 243, 0.1); padding: 10px; border-radius: 5px;">
+                Devices - Total: ${pdfSoldItemsSummary.devices.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} items, ${pdfSoldItemsSummary.devices
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #e3f2fd;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Device Name</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.devices
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+          <!-- Repairs -->
+          ${
+            pdfSoldItemsSummary.repairs.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #9c27b0; margin-bottom: 15px; background: rgba(156, 39, 176, 0.1); padding: 10px; border-radius: 5px;">
+                Repairs - Total: ${pdfSoldItemsSummary.repairs.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} services, ${pdfSoldItemsSummary.repairs
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #f3e5f5;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Repair Service</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.repairs
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+          <!-- Puffs -->
+          ${
+            pdfSoldItemsSummary.puffs.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #e91e63; margin-bottom: 15px; background: rgba(233, 30, 99, 0.1); padding: 10px; border-radius: 5px;">
+                Puffs - Total: ${pdfSoldItemsSummary.puffs.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} items, ${pdfSoldItemsSummary.puffs
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #fce4ec;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Puff Name</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.puffs
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+          <!-- Flavour Bottles -->
+          ${
+            pdfSoldItemsSummary.flavourBottles.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #4caf50; margin-bottom: 15px; background: rgba(76, 175, 80, 0.1); padding: 10px; border-radius: 5px;">
+                Flavour Bottles - Total: ${pdfSoldItemsSummary.flavourBottles.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} bottles, ${pdfSoldItemsSummary.flavourBottles
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #e8f5e9;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Flavour Name</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.flavourBottles
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+          <!-- Refills -->
+          ${
+            pdfSoldItemsSummary.refills.length > 0
+              ? `
+            <div style="margin-bottom: 25px;">
+              <h3 style="color: #ff5722; margin-bottom: 15px; background: rgba(255, 87, 34, 0.1); padding: 10px; border-radius: 5px;">
+                Refills - Total: ${pdfSoldItemsSummary.refills.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )} refills, ${pdfSoldItemsSummary.refills
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2)} PKR
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background-color: #fbe9e7;">
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Flavour Name</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Quantity</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pdfSoldItemsSummary.refills
+                    .map(
+                      (item) => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 8px; border: 1px solid #ddd;">${
+                        item.name
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${
+                        item.quantity
+                      }</td>
+                      <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.amount.toFixed(
+                        2
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `
+              : ""
+          }
+
+        </div>
+
+        <!-- Continue with existing PDF content... -->
+        <!-- (The rest of your existing PDF content remains the same) -->
+        
         <!-- Financial Summary -->
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
           <h2 style="color: #4a6fa5; text-align: center; margin-bottom: 20px;">FINANCIAL SUMMARY</h2>
@@ -938,7 +1493,6 @@ export default function TotalsPage() {
               animationDelay: "0.1s",
             }}
             className="total-card hover-shimmer"
-            // style={{  }}
           >
             <h3>Cash Sales</h3>
             <div style={valueStyles} className="counting-number">
@@ -957,7 +1511,6 @@ export default function TotalsPage() {
               animationDelay: "0.2s",
             }}
             className="total-card hover-shimmer"
-            // style={{  }}
           >
             <h3>JazzCash Sales</h3>
             <div
@@ -979,7 +1532,6 @@ export default function TotalsPage() {
               animationDelay: "0.3s",
             }}
             className="total-card hover-shimmer"
-            // style={{  }}
           >
             <h3>Credit Card Sales</h3>
             <div
@@ -1176,6 +1728,252 @@ export default function TotalsPage() {
           </div>
         </div>
 
+        {/* NEW: Sold Items Summary Section */}
+        <div style={sectionStyles}>
+          <h2 style={sectionTitleStyle}>Sold Items Summary</h2>
+
+          {/* Coils */}
+          {soldItemsSummary.coils.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#ff9800" }}>
+                Coils Sold ({categoryTotals.coils.totalQuantity} items) - Total:{" "}
+                {categoryTotals.coils.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.coils.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #ff9800",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#ff9800" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Devices */}
+          {soldItemsSummary.devices.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#2196f3" }}>
+                Devices Sold ({categoryTotals.devices.totalQuantity} items) -
+                Total: {categoryTotals.devices.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.devices.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #2196f3",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#2196f3" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Repairs */}
+          {soldItemsSummary.repairs.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#9c27b0" }}>
+                Repairs ({categoryTotals.repairs.totalQuantity} services) -
+                Total: {categoryTotals.repairs.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.repairs.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #9c27b0",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#9c27b0" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Puffs */}
+          {soldItemsSummary.puffs.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#e91e63" }}>
+                Puffs Sold ({categoryTotals.puffs.totalQuantity} items) - Total:{" "}
+                {categoryTotals.puffs.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.puffs.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #e91e63",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#e91e63" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Flavour Bottles */}
+          {soldItemsSummary.flavourBottles.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#4caf50" }}>
+                Flavour Bottles ({categoryTotals.flavourBottles.totalQuantity}{" "}
+                bottles) - Total:{" "}
+                {categoryTotals.flavourBottles.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.flavourBottles.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #4caf50",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#4caf50" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Refills */}
+          {soldItemsSummary.refills.length > 0 && (
+            <div style={categorySectionStyles}>
+              <h3 style={{ ...categoryTitleStyles, color: "#ff5722" }}>
+                Refills ({categoryTotals.refills.totalQuantity} refills) -
+                Total: {categoryTotals.refills.totalAmount.toFixed(2)} PKR
+              </h3>
+              <div style={itemsGridStyles}>
+                {soldItemsSummary.refills.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      ...itemCardStyles,
+                      borderTop: "3px solid #ff5722",
+                    }}
+                    className="summary-card"
+                  >
+                    <h4 style={{ margin: "0 0 10px 0", color: "#ff5722" }}>
+                      {item.name}
+                    </h4>
+                    <div style={itemDetailsStyles}>
+                      <div>
+                        Quantity: <strong>{item.quantity}</strong>
+                      </div>
+                      <div>
+                        Amount: <strong>{item.amount.toFixed(2)} PKR</strong>
+                      </div>
+                      <div>
+                        Avg Price:{" "}
+                        <strong>
+                          {(item.amount / item.quantity).toFixed(2)} PKR
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Financial Summary */}
         <div style={sectionStyles}>
           <h2 style={sectionTitleStyle}>Financial Summary</h2>
@@ -1198,7 +1996,6 @@ export default function TotalsPage() {
             <div
               style={{ ...summaryItemStyles, animationDelay: "0.2s" }}
               className="summary-card animate-slide-left"
-              // style={ }
             >
               <h4>Collected Revenue</h4>
               <div style={summaryValueStyles}>
@@ -1394,6 +2191,41 @@ export default function TotalsPage() {
 }
 
 // ==================== NEW STYLES ====================
+
+const categorySectionStyles: React.CSSProperties = {
+  marginBottom: "30px",
+};
+
+const categoryTitleStyles: React.CSSProperties = {
+  fontSize: "1.25rem",
+  marginBottom: "15px",
+  paddingBottom: "10px",
+  borderBottom: "2px solid #eee",
+  fontWeight: "600",
+};
+
+const itemsGridStyles: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+  gap: "15px",
+  marginTop: "15px",
+};
+
+const itemCardStyles: React.CSSProperties = {
+  backgroundColor: "white",
+  padding: "20px",
+  borderRadius: "10px",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+};
+
+const itemDetailsStyles: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px",
+  fontSize: "0.9rem",
+  color: "#666",
+};
 
 const backendNoteStyle: React.CSSProperties = {
   fontSize: "0.75rem",
