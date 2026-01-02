@@ -28,14 +28,67 @@ export default function SalesTracker() {
   const [isFormVisible, setIsFormVisible] = useState<boolean>(false);
   const [isAmountManuallyChanged, setIsAmountManuallyChanged] =
     useState<boolean>(false);
+  const [flavor, setFlavor] = useState<string>("");
 
-  // Refs for form fields
+  // NEW: Add field error states
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({
+    type: false,
+    itemName: false,
+    quantity: false,
+    amount: false,
+    paymentMethod: false,
+    customItem: false,
+    flavor: false,
+    customerName: false,
+    customerPhone: false,
+  });
+
+  // Flavor suggestions
+  const flavorSuggestions = {
+    "Pineapple Series": [
+      "Pine Mango",
+      "Pineapple",
+      "Pine Passion",
+      "Blue Pine",
+      "Pine Lychee",
+      "Pine Jam",
+      "Pink Pine Apple",
+      "Pine Bubblegum",
+    ],
+    "Simple Tokyo": [
+      "Strawberry Litchi",
+      "Strawberry Watermelon",
+      "Passion Kiwi",
+      "Straw Kiwi",
+      "Dragonfruit",
+      "Dragon Kiwi",
+      "Grapes",
+      "Papaya",
+      "Rose Grapes",
+      "Passion",
+      "Honey Peach",
+      "Instant Mango",
+      "Peach Watermelon",
+      "Apricot",
+      "Wild Blueberry",
+      "Coke",
+      "Green Grapes",
+      "Mull Berries",
+      "Grapes Litchi",
+      "Watermelon Blueberry",
+    ],
+    "UK Salt": [], // Add UK Salt flavors if needed
+  };
+
+  // Refs
   const typeSelectRef = useRef<HTMLSelectElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const customItemRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
   const customerPhoneRef = useRef<HTMLInputElement>(null);
+  const flavorRef = useRef<HTMLInputElement>(null);
+  const itemNameRef = useRef<HTMLSelectElement>(null); // Added ref for itemName select
 
   const [modal, setModal] = useState<
     Omit<ModalProps, "onClose" | "onConfirm"> & {
@@ -48,6 +101,59 @@ export default function SalesTracker() {
     message: "",
     type: "alert",
   });
+
+  // NEW: Reset field errors when values change
+  useEffect(() => {
+    if (quantity) {
+      setFieldErrors((prev) => ({ ...prev, quantity: false }));
+    }
+  }, [quantity]);
+
+  useEffect(() => {
+    if (amount) {
+      setFieldErrors((prev) => ({ ...prev, amount: false }));
+    }
+  }, [amount]);
+
+  useEffect(() => {
+    if (type) {
+      setFieldErrors((prev) => ({ ...prev, type: false }));
+    }
+  }, [type]);
+
+  useEffect(() => {
+    if (itemName || customItem) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        itemName: false,
+        customItem: false,
+      }));
+    }
+  }, [itemName, customItem]);
+
+  useEffect(() => {
+    if (paymentMethod) {
+      setFieldErrors((prev) => ({ ...prev, paymentMethod: false }));
+    }
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    if (customerName) {
+      setFieldErrors((prev) => ({ ...prev, customerName: false }));
+    }
+  }, [customerName]);
+
+  useEffect(() => {
+    if (customerPhone) {
+      setFieldErrors((prev) => ({ ...prev, customerPhone: false }));
+    }
+  }, [customerPhone]);
+
+  useEffect(() => {
+    if (flavor) {
+      setFieldErrors((prev) => ({ ...prev, flavor: false }));
+    }
+  }, [flavor]);
 
   // Price multipliers
   const FRONTEND_MULTIPLIERS = {
@@ -69,7 +175,7 @@ export default function SalesTracker() {
     }, 100);
   }, []);
 
-  // Calculate suggested amount when quantity changes for refill and coil
+  // Calculate suggested amount
   useEffect(() => {
     if (type === "refill" || type === "coil") {
       const qty = parseFloat(quantity) || 0;
@@ -79,13 +185,11 @@ export default function SalesTracker() {
         const calculatedAmount = qty * frontendMultiplier;
         setSuggestedAmount(calculatedAmount.toString());
 
-        // Auto-fill amount if it hasn't been manually changed and we're not editing
         if (!isAmountManuallyChanged && editingIndex === null) {
           setAmount(calculatedAmount.toString());
         }
       } else {
         setSuggestedAmount("");
-        // Clear amount when quantity is cleared
         if (quantity === "") {
           setAmount("");
           setIsAmountManuallyChanged(false);
@@ -96,14 +200,33 @@ export default function SalesTracker() {
     }
   }, [quantity, type, editingIndex, isAmountManuallyChanged]);
 
-  // Phone number validation
+  // Reset flavor when itemName changes
+  useEffect(() => {
+    if (type === "refill" || type === "flavourbottle") {
+      setFlavor("");
+    }
+  }, [itemName, type]);
+
+  // Phone validation
   const isValidPhoneNumber = (phone: string): boolean => {
     const phoneRegex = /^\d{11}$/;
     return phoneRegex.test(phone.replace(/\D/g, ""));
   };
 
-  // Create stable callback for validation
   const validateAndSaveSale = useCallback((): void => {
+    // NEW: Reset all field errors
+    setFieldErrors({
+      type: false,
+      itemName: false,
+      quantity: false,
+      amount: false,
+      paymentMethod: false,
+      customItem: false,
+      flavor: false,
+      customerName: false,
+      customerPhone: false,
+    });
+
     const finalItemName =
       type === "device" || type === "puff" || type === "repairing"
         ? customItem
@@ -111,7 +234,6 @@ export default function SalesTracker() {
     const saleQuantity = parseFloat(quantity);
     const saleAmount = parseFloat(amount);
 
-    // Calculate backend amount based on quantity and backend multipliers
     let saleBackendAmount: number = 0;
     if (type === "refill") {
       saleBackendAmount = saleQuantity * BACKEND_MULTIPLIERS.refill;
@@ -119,51 +241,111 @@ export default function SalesTracker() {
       saleBackendAmount = saleQuantity * BACKEND_MULTIPLIERS.coil;
     }
 
-    // Basic validation
+    // NEW: Comprehensive field validation with focus on missing fields
+    let hasError = false;
+    const newErrors = { ...fieldErrors };
+
+    // Validate type
+    if (!type.trim()) {
+      newErrors.type = true;
+      hasError = true;
+    }
+
+    // Validate item name
+    if (type === "device" || type === "puff" || type === "repairing") {
+      if (!customItem.trim()) {
+        newErrors.customItem = true;
+        hasError = true;
+      }
+    } else {
+      if (!itemName.trim()) {
+        newErrors.itemName = true;
+        hasError = true;
+      }
+    }
+
+    // Validate flavor for specific conditions
     if (
-      !finalItemName ||
-      !quantity ||
-      !amount ||
-      isNaN(saleQuantity) ||
-      saleQuantity <= 0 ||
-      isNaN(saleAmount) ||
-      saleAmount <= 0
+      (type === "refill" || type === "flavourbottle") &&
+      (itemName === "Pineapple Series" ||
+        itemName === "Simple Tokyo" ||
+        itemName === "UK Salt") &&
+      !flavor.trim()
     ) {
+      newErrors.flavor = true;
+      hasError = true;
+    }
+
+    // Validate quantity
+    if (!quantity.trim() || isNaN(saleQuantity) || saleQuantity <= 0) {
+      newErrors.quantity = true;
+      hasError = true;
+    }
+
+    // Validate amount
+    if (!amount.trim() || isNaN(saleAmount) || saleAmount <= 0) {
+      newErrors.amount = true;
+      hasError = true;
+    }
+
+    // Validate payment method
+    if (!paymentMethod.trim()) {
+      newErrors.paymentMethod = true;
+      hasError = true;
+    }
+
+    // Validate credit sale details
+    if (isCredit) {
+      if (!customerName.trim()) {
+        newErrors.customerName = true;
+        hasError = true;
+      }
+
+      if (!customerPhone.trim()) {
+        newErrors.customerPhone = true;
+        hasError = true;
+      }
+
+      if (customerPhone && !isValidPhoneNumber(customerPhone)) {
+        showModal({
+          isOpen: true,
+          title: "Invalid Phone Number",
+          message: "Phone number must be exactly 11 digits.",
+          type: "error",
+        });
+        customerPhoneRef.current?.focus();
+        return;
+      }
+    }
+
+    if (hasError) {
+      setFieldErrors(newErrors);
+
+      // Focus on first error field
+      if (newErrors.type) typeSelectRef.current?.focus();
+      else if (newErrors.customItem) customItemRef.current?.focus();
+      else if (newErrors.itemName) itemNameRef.current?.focus();
+      else if (newErrors.flavor) flavorRef.current?.focus();
+      else if (newErrors.quantity) quantityRef.current?.focus();
+      else if (newErrors.amount) amountRef.current?.focus();
+      else if (newErrors.paymentMethod) {
+        // FIXED: Properly handle the payment method field focus
+        const paymentMethodElement = document.querySelector(
+          'select[name="paymentMethod"]'
+        ) as HTMLElement;
+        paymentMethodElement?.focus();
+      } else if (newErrors.customerName) customerNameRef.current?.focus();
+      else if (newErrors.customerPhone) customerPhoneRef.current?.focus();
+
       showModal({
         isOpen: true,
         title: "Validation Error",
-        message: "Please fill all required fields with valid values.",
+        message: "Please fill all required fields before saving.",
         type: "error",
       });
       return;
     }
 
-    // Credit sale validation
-    if (isCredit) {
-      if (!customerName.trim() || !customerPhone.trim()) {
-        showModal({
-          isOpen: true,
-          title: "Credit Sale Required",
-          message:
-            "For credit sales, both customer name and phone number are required.",
-          type: "error",
-        });
-        return;
-      }
-
-      if (!isValidPhoneNumber(customerPhone)) {
-        showModal({
-          isOpen: true,
-          title: "Invalid Phone Number",
-          message:
-            "Phone number must be exactly 11 digits (without any spaces or special characters).",
-          type: "error",
-        });
-        return;
-      }
-    }
-
-    // All validations passed, add or update the sale
     if (editingIndex !== null) {
       updateSale(saleAmount, saleBackendAmount);
     } else {
@@ -180,9 +362,9 @@ export default function SalesTracker() {
     customerPhone,
     editingIndex,
     paymentMethod,
+    flavor,
   ]);
 
-  // Handle phone number input with validation
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const value = e.target.value.replace(/\D/g, "");
     if (value.length <= 11) {
@@ -190,7 +372,7 @@ export default function SalesTracker() {
     }
   };
 
-  // Handle Enter key press
+  // Handle Enter key
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
@@ -216,7 +398,6 @@ export default function SalesTracker() {
           activeElement.closest("form") ||
           activeElement.getAttribute("role") === "textbox" ||
           activeElement.classList.contains("form-field");
-
         if (!isFormField) {
           e.preventDefault();
           validateAndSaveSale();
@@ -229,9 +410,7 @@ export default function SalesTracker() {
     };
 
     document.addEventListener("keydown", handleKeyPress);
-    return () => {
-      document.removeEventListener("keydown", handleKeyPress);
-    };
+    return () => document.removeEventListener("keydown", handleKeyPress);
   }, [modal.isOpen, modal.type, modal.onConfirm, validateAndSaveSale]);
 
   const showModal = (
@@ -242,14 +421,13 @@ export default function SalesTracker() {
     setModal({ ...config, isOpen: true });
   };
 
-  const hideModal = () => {
-    setModal((prev) => ({ ...prev, isOpen: false }));
-  };
+  const hideModal = () => setModal((prev) => ({ ...prev, isOpen: false }));
 
   const updateItemField = (newType: string): void => {
     if (newType === "device" || newType === "puff" || newType === "repairing") {
       setItemName("");
       setCustomItem("");
+      setFlavor("");
     } else {
       if (newType === "refill") {
         setItemName("Pineapple Series");
@@ -259,9 +437,9 @@ export default function SalesTracker() {
         setItemName("VMate");
       }
       setCustomItem("");
+      setFlavor("");
     }
 
-    // Reset amounts and flags when type changes
     setQuantity("");
     setAmount("");
     setSuggestedAmount("");
@@ -277,8 +455,6 @@ export default function SalesTracker() {
   const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const value = e.target.value;
     setQuantity(value);
-
-    // If quantity is being cleared, clear amount as well
     if (value === "") {
       setAmount("");
       setIsAmountManuallyChanged(false);
@@ -288,7 +464,6 @@ export default function SalesTracker() {
   const handleAmountChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const value = e.target.value;
     setAmount(value);
-    // Mark as manually changed if user types anything
     if (value !== "" && !isAmountManuallyChanged) {
       setIsAmountManuallyChanged(true);
     }
@@ -296,11 +471,9 @@ export default function SalesTracker() {
 
   const editSale = (index: number): void => {
     const sale = sales[index];
-
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     setType(sale.type);
-
     if (
       sale.type === "device" ||
       sale.type === "puff" ||
@@ -308,14 +481,16 @@ export default function SalesTracker() {
     ) {
       setCustomItem(sale.itemName);
       setItemName("");
+      setFlavor("");
     } else {
       setItemName(sale.itemName);
       setCustomItem("");
+      setFlavor(sale.flavor || "");
     }
 
     setQuantity(sale.quantity.toString());
     setAmount(sale.amount.toString());
-    setIsAmountManuallyChanged(true); // Amount is set from existing sale, so mark as manually changed
+    setIsAmountManuallyChanged(true);
 
     if (sale.type === "refill" || sale.type === "coil") {
       const multiplier =
@@ -331,9 +506,20 @@ export default function SalesTracker() {
     setCustomerPhone(sale.customerPhone);
     setEditingIndex(index);
 
-    setTimeout(() => {
-      typeSelectRef.current?.focus();
-    }, 50);
+    // Reset errors when editing
+    setFieldErrors({
+      type: false,
+      itemName: false,
+      quantity: false,
+      amount: false,
+      paymentMethod: false,
+      customItem: false,
+      flavor: false,
+      customerName: false,
+      customerPhone: false,
+    });
+
+    setTimeout(() => typeSelectRef.current?.focus(), 50);
   };
 
   const cancelEdit = (): void => {
@@ -352,12 +538,22 @@ export default function SalesTracker() {
     setIsCredit(false);
     setCustomerName("");
     setCustomerPhone("");
+    setFlavor("");
     setEditingIndex(null);
     setIsAmountManuallyChanged(false);
-
-    setTimeout(() => {
-      typeSelectRef.current?.focus();
-    }, 50);
+    // Reset errors when form is reset
+    setFieldErrors({
+      type: false,
+      itemName: false,
+      quantity: false,
+      amount: false,
+      paymentMethod: false,
+      customItem: false,
+      flavor: false,
+      customerName: false,
+      customerPhone: false,
+    });
+    setTimeout(() => typeSelectRef.current?.focus(), 50);
   };
 
   const addSale = (saleAmount: number, saleBackendAmount: number): void => {
@@ -379,14 +575,9 @@ export default function SalesTracker() {
       customerName: isCredit ? customerName.trim() : "",
       customerPhone: isCredit ? customerPhone.trim() : "",
       isPaid: !isCredit,
+      flavor:
+        type === "refill" || type === "flavourbottle" ? flavor : undefined,
     };
-
-    console.log(
-      "Adding sale - User Amount:",
-      saleAmount,
-      "Backend Amount:",
-      saleBackendAmount
-    );
 
     if (isCredit && customerName && customerPhone) {
       addToCreditors(
@@ -401,7 +592,6 @@ export default function SalesTracker() {
     const updatedSales = [...sales, newSale];
     setSales(updatedSales);
     saveSales(updatedSales);
-
     resetForm();
 
     showModal({
@@ -434,14 +624,9 @@ export default function SalesTracker() {
       customerName: isCredit ? customerName.trim() : "",
       customerPhone: isCredit ? customerPhone.trim() : "",
       isPaid: !isCredit,
+      flavor:
+        type === "refill" || type === "flavourbottle" ? flavor : undefined,
     };
-
-    console.log(
-      "Updating sale - User Amount:",
-      saleAmount,
-      "Backend Amount:",
-      saleBackendAmount
-    );
 
     handleCreditorUpdate(
       originalSale,
@@ -455,7 +640,6 @@ export default function SalesTracker() {
     updatedSales[editingIndex] = updatedSale;
     setSales(updatedSales);
     saveSales(updatedSales);
-
     resetForm();
 
     showModal({
@@ -508,7 +692,6 @@ export default function SalesTracker() {
     if (creditorIndex !== -1) {
       const creditor = creditors[creditorIndex];
       creditor.amountOwed -= originalSale.amount;
-
       creditor.purchases = creditor.purchases.filter(
         (p) =>
           !(
@@ -569,7 +752,6 @@ export default function SalesTracker() {
 
   const deleteSale = (index: number): void => {
     const sale = sales[index];
-
     showModal({
       isOpen: true,
       title: "Delete Sale",
@@ -585,7 +767,6 @@ export default function SalesTracker() {
         );
         setSales(updatedSales.filter((s) => !s.deleted));
         saveSales(updatedSales);
-
         showModal({
           isOpen: true,
           title: "Success!",
@@ -601,25 +782,23 @@ export default function SalesTracker() {
       isOpen: true,
       title: "Delete All Sales",
       message:
-        "Are you sure you want to permanently delete ALL sales (including deleted sales from reports)? This action cannot be undone.",
+        "Are you sure you want to permanently delete ALL sales? This action cannot be undone.",
       type: "confirm",
       confirmText: "Delete All",
       cancelText: "Cancel",
       onConfirm: () => {
         permanentDeleteAllSales();
         setSales([]);
-
         showModal({
           isOpen: true,
           title: "Success!",
-          message: "All sales have been permanently deleted from everywhere.",
+          message: "All sales have been permanently deleted.",
           type: "success",
         });
       },
     });
   };
 
-  // Format sale type for display
   const formatSaleType = (type: string): string => {
     const typeMap: { [key: string]: string } = {
       refill: "Refill",
@@ -632,7 +811,6 @@ export default function SalesTracker() {
     return typeMap[type] || type;
   };
 
-  // Format payment method for display
   const formatPaymentMethod = (method: string): string => {
     const methodMap: { [key: string]: string } = {
       cash: "Cash",
@@ -642,7 +820,6 @@ export default function SalesTracker() {
     return methodMap[method] || method;
   };
 
-  // Get border color based on sale type
   const getBorderColor = (saleType: string): string => {
     switch (saleType) {
       case "refill":
@@ -672,7 +849,6 @@ export default function SalesTracker() {
             transform: translateY(0);
           }
         }
-
         @keyframes slideInRight {
           from {
             opacity: 0;
@@ -683,7 +859,6 @@ export default function SalesTracker() {
             transform: translateX(0);
           }
         }
-
         @keyframes pulse {
           0% {
             box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
@@ -695,7 +870,6 @@ export default function SalesTracker() {
             box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
           }
         }
-
         @keyframes float {
           0%,
           100% {
@@ -705,133 +879,59 @@ export default function SalesTracker() {
             transform: translateY(-5px);
           }
         }
-
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
+        @keyframes shake {
+          0%,
           100% {
-            background-position: 1000px 0;
+            transform: translateX(0);
+          }
+          10%,
+          30%,
+          50%,
+          70%,
+          90% {
+            transform: translateX(-5px);
+          }
+          20%,
+          40%,
+          60%,
+          80% {
+            transform: translateX(5px);
           }
         }
-
-        @keyframes bounceIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.3);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.05);
-          }
-          70% {
-            transform: scale(0.9);
-          }
-          100% {
-            transform: scale(1);
-          }
-        }
-
         .animate-fade-in-up {
           animation: fadeInUp 0.6s ease-out forwards;
         }
-
         .animate-slide-in-right {
           animation: slideInRight 0.5s ease-out forwards;
         }
-
         .animate-pulse-once {
           animation: pulse 1.5s ease-in-out;
         }
-
         .animate-float {
           animation: float 3s ease-in-out infinite;
         }
-
+        .animate-shake {
+          animation: shake 0.5s ease-in-out;
+        }
         .hover-grow {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-
         .hover-grow:hover {
           transform: translateY(-3px);
           box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
-
-        .hover-shimmer {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .hover-shimmer:hover::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255, 255, 255, 0.2),
-            transparent
-          );
-          animation: shimmer 1.5s infinite;
-        }
-
-        .transition-all-smooth {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .transition-transform-smooth {
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .transition-opacity-smooth {
-          transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         .button-press {
           transition: transform 0.1s ease;
         }
-
         .button-press:active {
           transform: scale(0.95);
         }
-
-        .form-input-focus {
-          transition: all 0.3s ease;
-        }
-
-        .form-input-focus:focus {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(74, 111, 165, 0.2);
-        }
-
         .card-hover {
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
         .card-hover:hover {
           transform: translateY(-5px) scale(1.02);
           box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-        }
-
-        .success-highlight {
-          background: linear-gradient(45deg, #28a745, #20c997);
-          background-size: 200% 200%;
-          animation: gradient 2s ease infinite;
-        }
-
-        @keyframes gradient {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
         }
       `}</style>
 
@@ -861,9 +961,12 @@ export default function SalesTracker() {
             ref={typeSelectRef}
             value={type}
             onChange={handleTypeChange}
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              borderColor: fieldErrors.type ? "#dc3545" : "#ddd",
+              animation: fieldErrors.type ? "shake 0.5s ease-in-out" : "none",
+            }}
             autoFocus
-            className="form-input-focus hover-shimmer transition-all-smooth"
           >
             <option value="refill">Refill</option>
             <option value="coil">Coil</option>
@@ -872,60 +975,122 @@ export default function SalesTracker() {
             <option value="repairing">Repairing</option>
             <option value="flavourbottle">Flavour Bottle</option>
           </select>
+          {fieldErrors.type && (
+            <small style={errorTextStyle}>Sale type is required</small>
+          )}
         </div>
 
         <div style={formGroupStyle}>
           <label style={labelStyle}>Item Name</label>
           {type === "device" || type === "puff" || type === "repairing" ? (
-            <input
-              ref={customItemRef}
-              type="text"
-              value={customItem}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setCustomItem(e.target.value)
-              }
-              placeholder={
-                type === "puff"
-                  ? "Enter puff name"
-                  : type === "repairing"
-                  ? "Enter repair service name"
-                  : "Enter device name"
-              }
-              style={inputStyle}
-              className="form-input-focus hover-shimmer transition-all-smooth"
-            />
-          ) : (
-            <select
-              value={itemName}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setItemName(e.target.value)
-              }
-              style={inputStyle}
-              className="form-input-focus hover-shimmer transition-all-smooth"
-            >
-              {type === "refill" || type === "flavourbottle" ? (
-                <>
-                  <option value="Pineapple Series">Pineapple Series</option>
-                  <option value="UK Salt">UK Salt</option>
-                  <option value="Simple Tokyo">Simple Tokyo</option>
-                </>
-              ) : (
-                <>
-                  <option value="VMate">VMate</option>
-                  <option value="Argus">Argus</option>
-                  <option value="G3">G3</option>
-                  <option value="Xlim">Xlim</option>
-                  <option value="Xros">Xros</option>
-                  <option value="Freemax">Freemax</option>
-                  <option value="Caliburn g">Caliburn g</option>
-                  <option value="Sonder">Sonder</option>
-                  <option value="Oneo">Oneo</option>
-                  <option value="Nexlim">Nexlim</option>
-                </>
+            <>
+              <input
+                ref={customItemRef}
+                type="text"
+                value={customItem}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setCustomItem(e.target.value)
+                }
+                placeholder={
+                  type === "puff"
+                    ? "Enter puff name"
+                    : type === "repairing"
+                    ? "Enter repair service name"
+                    : "Enter device name"
+                }
+                style={{
+                  ...inputStyle,
+                  borderColor: fieldErrors.customItem ? "#dc3545" : "#ddd",
+                  animation: fieldErrors.customItem
+                    ? "shake 0.5s ease-in-out"
+                    : "none",
+                }}
+              />
+              {fieldErrors.customItem && (
+                <small style={errorTextStyle}>Item name is required</small>
               )}
-            </select>
+            </>
+          ) : (
+            <>
+              <select
+                ref={itemNameRef}
+                value={itemName}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                  setItemName(e.target.value)
+                }
+                style={{
+                  ...inputStyle,
+                  borderColor: fieldErrors.itemName ? "#dc3545" : "#ddd",
+                  animation: fieldErrors.itemName
+                    ? "shake 0.5s ease-in-out"
+                    : "none",
+                }}
+              >
+                {type === "refill" || type === "flavourbottle" ? (
+                  <>
+                    <option value="Pineapple Series">Pineapple Series</option>
+                    <option value="UK Salt">UK Salt</option>
+                    <option value="Simple Tokyo">Simple Tokyo</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="VMate">VMate</option>
+                    <option value="Argus">Argus</option>
+                    <option value="G3">G3</option>
+                    <option value="Xlim">Xlim</option>
+                    <option value="Xros">Xros</option>
+                    <option value="Freemax">Freemax</option>
+                    <option value="Caliburn g">Caliburn g</option>
+                    <option value="Sonder">Sonder</option>
+                    <option value="Oneo">Oneo</option>
+                    <option value="Nexlim">Nexlim</option>
+                  </>
+                )}
+              </select>
+              {fieldErrors.itemName && (
+                <small style={errorTextStyle}>Item selection is required</small>
+              )}
+            </>
           )}
         </div>
+
+        {/* Flavor Input Field */}
+        {(type === "refill" || type === "flavourbottle") &&
+          (itemName === "Pineapple Series" ||
+            itemName === "Simple Tokyo" ||
+            itemName === "UK Salt") && (
+            <div style={formGroupStyle} className="animate-slide-in-right">
+              <label style={labelStyle}>Flavor Name</label>
+              <input
+                ref={flavorRef}
+                type="text"
+                value={flavor}
+                required
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  setFlavor(e.target.value)
+                }
+                list="flavor-suggestions"
+                placeholder="Select or type flavor name"
+                style={{
+                  ...inputStyle,
+                  borderColor: fieldErrors.flavor ? "#dc3545" : "#ddd",
+                  animation: fieldErrors.flavor
+                    ? "shake 0.5s ease-in-out"
+                    : "none",
+                }}
+              />
+              <datalist id="flavor-suggestions">
+                {flavorSuggestions[
+                  itemName as keyof typeof flavorSuggestions
+                ]?.map((flavorName, index) => (
+                  <option key={index} value={flavorName} />
+                ))}
+              </datalist>
+              {fieldErrors.flavor && (
+                <small style={errorTextStyle}>Flavor name is required</small>
+              )}
+            </div>
+          )}
 
         <div style={formGroupStyle}>
           <label style={labelStyle}>Quantity</label>
@@ -937,9 +1102,14 @@ export default function SalesTracker() {
             value={quantity}
             onChange={handleQuantityChange}
             placeholder="Enter quantity"
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              borderColor: fieldErrors.quantity ? "#dc3545" : "#ddd",
+              animation: fieldErrors.quantity
+                ? "shake 0.5s ease-in-out"
+                : "none",
+            }}
             required
-            className="form-input-focus hover-shimmer transition-all-smooth"
           />
           {(type === "refill" || type === "coil") && quantity && (
             <small style={noteStyle}>
@@ -948,6 +1118,9 @@ export default function SalesTracker() {
               <br />
               <em>(You can change the amount below)</em>
             </small>
+          )}
+          {fieldErrors.quantity && (
+            <small style={errorTextStyle}>Valid quantity is required</small>
           )}
         </div>
 
@@ -960,9 +1133,12 @@ export default function SalesTracker() {
             value={amount}
             onChange={handleAmountChange}
             placeholder="Enter amount"
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              borderColor: fieldErrors.amount ? "#dc3545" : "#ddd",
+              animation: fieldErrors.amount ? "shake 0.5s ease-in-out" : "none",
+            }}
             required
-            className="form-input-focus hover-shimmer transition-all-smooth"
           />
           {(type === "refill" || type === "coil") &&
             amount &&
@@ -972,7 +1148,6 @@ export default function SalesTracker() {
                   parseFloat(amount),
                   parseFloat(suggestedAmount)
                 )}
-                className="transition-opacity-smooth"
               >
                 {parseFloat(amount) === parseFloat(suggestedAmount)
                   ? "✓ Using suggested amount"
@@ -985,22 +1160,34 @@ export default function SalesTracker() {
                     ).toFixed(2)} PKR`}
               </small>
             )}
+          {fieldErrors.amount && (
+            <small style={errorTextStyle}>Valid amount is required</small>
+          )}
         </div>
 
         <div style={formGroupStyle}>
           <label style={labelStyle}>Payment Method</label>
           <select
+            name="paymentMethod"
             value={paymentMethod}
             onChange={(e: ChangeEvent<HTMLSelectElement>) =>
               setPaymentMethod(e.target.value)
             }
-            style={inputStyle}
-            className="form-input-focus hover-shimmer transition-all-smooth"
+            style={{
+              ...inputStyle,
+              borderColor: fieldErrors.paymentMethod ? "#dc3545" : "#ddd",
+              animation: fieldErrors.paymentMethod
+                ? "shake 0.5s ease-in-out"
+                : "none",
+            }}
           >
             <option value="cash">Cash</option>
             <option value="jazzcash">JazzCash</option>
             <option value="card">Credit Card</option>
           </select>
+          {fieldErrors.paymentMethod && (
+            <small style={errorTextStyle}>Payment method is required</small>
+          )}
         </div>
 
         <div style={formGroupStyle}>
@@ -1012,7 +1199,6 @@ export default function SalesTracker() {
                 setIsCredit(e.target.checked)
               }
               style={checkboxStyle}
-              className="transition-all-smooth"
             />
             Sell on Credit
           </label>
@@ -1030,10 +1216,18 @@ export default function SalesTracker() {
                   setCustomerName(e.target.value)
                 }
                 placeholder="Customer name"
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  borderColor: fieldErrors.customerName ? "#dc3545" : "#ddd",
+                  animation: fieldErrors.customerName
+                    ? "shake 0.5s ease-in-out"
+                    : "none",
+                }}
                 required
-                className="form-input-focus hover-shimmer transition-all-smooth"
               />
+              {fieldErrors.customerName && (
+                <small style={errorTextStyle}>Customer name is required</small>
+              )}
             </div>
             <div style={formGroupStyle} className="animate-slide-in-right">
               <label style={labelStyle}>Customer Phone *</label>
@@ -1046,27 +1240,31 @@ export default function SalesTracker() {
                 style={{
                   ...inputStyle,
                   borderColor:
-                    customerPhone && !isValidPhoneNumber(customerPhone)
+                    (customerPhone && !isValidPhoneNumber(customerPhone)) ||
+                    fieldErrors.customerPhone
                       ? "#dc3545"
                       : "#ddd",
+                  animation:
+                    (customerPhone && !isValidPhoneNumber(customerPhone)) ||
+                    fieldErrors.customerPhone
+                      ? "shake 0.5s ease-in-out"
+                      : "none",
                 }}
                 maxLength={11}
                 required
-                className="form-input-focus hover-shimmer transition-all-smooth"
               />
               {customerPhone && !isValidPhoneNumber(customerPhone) && (
-                <small
-                  style={{
-                    color: "#dc3545",
-                    fontSize: "0.8rem",
-                    marginTop: "5px",
-                    display: "block",
-                  }}
-                  className="animate-fade-in-up"
-                >
+                <small style={errorTextStyle}>
                   Phone number must be exactly 11 digits
                 </small>
               )}
+              {fieldErrors.customerPhone &&
+                customerPhone &&
+                isValidPhoneNumber(customerPhone) && (
+                  <small style={errorTextStyle}>
+                    Customer phone is required
+                  </small>
+                )}
             </div>
           </>
         )}
@@ -1078,7 +1276,7 @@ export default function SalesTracker() {
           style={
             editingIndex !== null ? warningButtonStyle : successButtonStyle
           }
-          className={`button-press hover-grow transition-all-smooth ${
+          className={`button-press hover-grow ${
             editingIndex !== null ? "animate-pulse-once" : ""
           }`}
         >
@@ -1090,7 +1288,7 @@ export default function SalesTracker() {
           <button
             onClick={cancelEdit}
             style={secondaryButtonStyle}
-            className="button-press hover-grow transition-all-smooth"
+            className="button-press hover-grow"
           >
             Cancel Edit
           </button>
@@ -1098,7 +1296,7 @@ export default function SalesTracker() {
         <button
           onClick={deleteAllSales}
           style={dangerButtonStyle}
-          className="button-press hover-grow transition-all-smooth"
+          className="button-press hover-grow"
         >
           Delete All Sales
         </button>
@@ -1140,6 +1338,11 @@ export default function SalesTracker() {
               <p>
                 <span style={labelTextStyle}>Item:</span> {sale.itemName}
               </p>
+              {sale.flavor && (
+                <p>
+                  <span style={labelTextStyle}>Flavor:</span> {sale.flavor}
+                </p>
+              )}
               <p>
                 <span style={labelTextStyle}>Quantity:</span> {sale.quantity}
                 {(sale.type === "refill" || sale.type === "coil") && (
@@ -1149,7 +1352,6 @@ export default function SalesTracker() {
                       color: "#666",
                       fontSize: "0.9rem",
                     }}
-                    className="transition-opacity-smooth"
                   >
                     (Rate: {sale.amount / sale.quantity} PKR each)
                   </small>
@@ -1182,14 +1384,14 @@ export default function SalesTracker() {
                 <button
                   onClick={() => editSale(index)}
                   style={editButtonStyle}
-                  className="button-press hover-grow transition-all-smooth"
+                  className="button-press hover-grow"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => deleteSale(index)}
                   style={deleteButtonStyle}
-                  className="button-press hover-grow transition-all-smooth"
+                  className="button-press hover-grow"
                 >
                   Delete
                 </button>
@@ -1202,7 +1404,16 @@ export default function SalesTracker() {
   );
 }
 
-// ==================== STYLES ====================
+// NEW: Error text style
+const errorTextStyle: React.CSSProperties = {
+  color: "#dc3545",
+  fontSize: "0.8rem",
+  marginTop: "5px",
+  display: "block",
+  fontWeight: "500",
+};
+
+// Styles (rest of the styles remain the same)
 const containerStyle: React.CSSProperties = {
   padding: "1rem",
   maxWidth: "1400px",
@@ -1233,7 +1444,6 @@ const labelStyle: React.CSSProperties = {
   fontWeight: "600",
   color: "#333",
   fontSize: "0.95rem",
-  transition: "color 0.3s ease",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -1242,7 +1452,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: "1rem",
   border: "2px solid #e1e5e9",
   borderRadius: "10px",
-  boxSizing: "border-box" as const,
+  boxSizing: "border-box",
   backgroundColor: "white",
   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 };
@@ -1309,9 +1519,6 @@ const successButtonStyle: React.CSSProperties = {
   fontSize: "1.1rem",
   flex: 1,
   fontWeight: "600",
-  letterSpacing: "0.5px",
-  position: "relative",
-  overflow: "hidden",
 };
 
 const warningButtonStyle: React.CSSProperties = {
@@ -1324,9 +1531,6 @@ const warningButtonStyle: React.CSSProperties = {
   fontSize: "1.1rem",
   flex: 1,
   fontWeight: "600",
-  letterSpacing: "0.5px",
-  position: "relative",
-  overflow: "hidden",
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
@@ -1339,9 +1543,6 @@ const secondaryButtonStyle: React.CSSProperties = {
   fontSize: "1.1rem",
   flex: 1,
   fontWeight: "600",
-  letterSpacing: "0.5px",
-  position: "relative",
-  overflow: "hidden",
 };
 
 const dangerButtonStyle: React.CSSProperties = {
@@ -1354,9 +1555,6 @@ const dangerButtonStyle: React.CSSProperties = {
   fontSize: "1.1rem",
   flex: 1,
   fontWeight: "600",
-  letterSpacing: "0.5px",
-  position: "relative",
-  overflow: "hidden",
 };
 
 const cardsContainerStyle: React.CSSProperties = {
@@ -1429,8 +1627,6 @@ const editButtonStyle: React.CSSProperties = {
   borderRadius: "8px",
   cursor: "pointer",
   fontWeight: "600",
-  letterSpacing: "0.3px",
-  transition: "all 0.3s ease",
 };
 
 const deleteButtonStyle: React.CSSProperties = {
@@ -1442,8 +1638,6 @@ const deleteButtonStyle: React.CSSProperties = {
   borderRadius: "8px",
   cursor: "pointer",
   fontWeight: "600",
-  letterSpacing: "0.3px",
-  transition: "all 0.3s ease",
 };
 
 const emptyStateStyle: React.CSSProperties = {

@@ -6,14 +6,16 @@ export interface Sale {
   itemName: string;
   quantity: number;
   amount: number;
+  // backendAmount: number;
   paymentMethod: string;
   timestamp: string;
   isCredit: boolean;
   customerName: string;
   customerPhone: string;
-  isPaid?: boolean;
+  // isPaid: boolean;
   deleted?: boolean;
   deletedAt?: string;
+  flavor?: string; // Add this line
 }
 
 export interface Expense {
