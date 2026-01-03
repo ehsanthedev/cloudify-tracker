@@ -57,6 +57,7 @@ export default function SalesTracker() {
     ],
     "Simple Tokyo": [
       "Strawberry Litchi",
+      "cranberry Raspberry",
       "Strawberry Watermelon",
       "Passion Kiwi",
       "Straw Kiwi",
@@ -77,7 +78,22 @@ export default function SalesTracker() {
       "Grapes Litchi",
       "Watermelon Blueberry",
     ],
-    "UK Salt": [], // Add UK Salt flavors if needed
+    "UK Salt": [
+      "Pineapple Peach",
+      "Pineapple mango",
+      "Pineapple Passion",
+      "Pineapple bubblegum",
+      "Pineapple Lychee ",
+      "Pineapple Guava",
+      "Pineapple Grapes",
+      "Pineapple",
+      "Guava",
+      "Watermelon Bubblegum",
+      "Passion Mango",
+      "Grapes",
+      "Iced Blue Razz",
+      "Passion Bubblegum",
+    ], // Add UK Salt flavors if needed
   };
 
   // Refs
