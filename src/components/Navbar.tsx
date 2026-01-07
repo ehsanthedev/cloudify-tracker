@@ -174,7 +174,7 @@ export default function Navbar() {
               transition: "all 0.3s ease",
             }}
           >
-            SMOKE & SIN'S
+            SMOKE & SIN'S vaping
           </h1>
 
           {/* Desktop Navigation - Hidden on Mobile */}
