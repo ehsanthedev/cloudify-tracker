@@ -174,7 +174,7 @@ export default function Navbar() {
               transition: "all 0.3s ease",
             }}
           >
-            CLOUDIFY
+            SMOKE & SIN'S
           </h1>
 
           {/* Desktop Navigation - Hidden on Mobile */}

@@ -1595,6 +1595,33 @@ export default function TotalsPage() {
           .auth-button:active {
             transform: translateY(0);
           }
+
+          /* Mobile-specific styles for auth page */
+          @media (max-width: 480px) {
+            .auth-box {
+              padding: 25px 20px !important;
+              margin: 20px;
+              max-width: 90% !important;
+            }
+
+            .auth-box h2 {
+              font-size: 1.3rem !important;
+            }
+
+            .auth-box p {
+              font-size: 0.9rem !important;
+            }
+
+            .auth-input {
+              padding: 12px !important;
+              font-size: 0.95rem !important;
+            }
+
+            .auth-button {
+              padding: 12px !important;
+              font-size: 0.95rem !important;
+            }
+          }
         `}</style>
 
         <div className="auth-box animate-fade-in" style={authBoxStyles}>
@@ -1627,7 +1654,7 @@ export default function TotalsPage() {
 
   return (
     <div style={containerStyles}>
-      {/* Add Global CSS for animations */}
+      {/* Add Global CSS for animations and responsive styles */}
       <style jsx global>{`
         @keyframes fadeInUp {
           from {
@@ -1802,7 +1829,7 @@ export default function TotalsPage() {
           animation: float 6s ease-in-out infinite;
         }
 
-        /* Responsive animations */
+        /* Responsive styles */
         @media (max-width: 768px) {
           .mobile-fade-in {
             animation: fadeInUp 0.5s ease-out forwards;
@@ -1810,6 +1837,96 @@ export default function TotalsPage() {
 
           .mobile-slide-up {
             animation: fadeInUp 0.4s ease-out forwards;
+          }
+
+          /* Adjust grid layouts for mobile */
+          .totals-grid {
+            grid-template-columns: repeat(
+              auto-fill,
+              minmax(140px, 1fr)
+            ) !important;
+            gap: 15px !important;
+          }
+
+          .items-grid {
+            grid-template-columns: repeat(
+              auto-fill,
+              minmax(180px, 1fr)
+            ) !important;
+            gap: 12px !important;
+          }
+
+          .summary-grid {
+            grid-template-columns: 1fr !important;
+            gap: 15px !important;
+          }
+
+          .comparison-grid {
+            grid-template-columns: 1fr !important;
+            gap: 15px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          /* Extra small devices */
+          .totals-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+          }
+
+          .items-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .total-card {
+            padding: 15px !important;
+          }
+
+          .item-card {
+            padding: 15px !important;
+          }
+
+          .flavor-card {
+            padding: 15px !important;
+          }
+
+          .summary-card {
+            padding: 20px !important;
+          }
+
+          .comparison-card {
+            padding: 20px !important;
+          }
+
+          h1 {
+            font-size: 1.3rem !important;
+          }
+
+          h2 {
+            font-size: 1.1rem !important;
+          }
+
+          h3 {
+            font-size: 1rem !important;
+          }
+
+          h4 {
+            font-size: 0.95rem !important;
+          }
+
+          .value {
+            font-size: 1.3rem !important;
+          }
+
+          .summary-value {
+            font-size: 1.1rem !important;
+          }
+        }
+
+        @media (max-width: 360px) {
+          /* Smallest phones */
+          .totals-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
@@ -1833,7 +1950,7 @@ export default function TotalsPage() {
 
       <div id="totals-content">
         {/* Updated Totals Grid with counting animations */}
-        <div style={totalsGridStyles}>
+        <div className="totals-grid" style={totalsGridStyles}>
           {/* Cash Sales */}
           <div
             style={{
@@ -2037,7 +2154,6 @@ export default function TotalsPage() {
             style={{
               ...totalItemStyles,
               backgroundColor: "#f0f8ff",
-              gridColumn: "span 2",
               animationDelay: "1.1s",
             }}
             className="total-card hover-shimmer"
@@ -2088,7 +2204,7 @@ export default function TotalsPage() {
                 Flavors Summary ({categoryTotals.flavors.totalQuantity} items) -
                 Total: {categoryTotals.flavors.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.flavors.map((item, index) => (
                   <div
                     key={index}
@@ -2098,7 +2214,7 @@ export default function TotalsPage() {
                       backgroundColor:
                         item.type === "Refill" ? "#f3e5f5" : "#e8f5e9",
                     }}
-                    className="summary-card"
+                    className="summary-card flavor-card"
                   >
                     <div
                       style={{
@@ -2162,7 +2278,7 @@ export default function TotalsPage() {
                 Coils Sold ({categoryTotals.coils.totalQuantity} items) - Total:{" "}
                 {categoryTotals.coils.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.coils.map((item, index) => (
                   <div
                     key={index}
@@ -2170,7 +2286,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #ff9800",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#ff9800" }}>
                       {item.name}
@@ -2202,7 +2318,7 @@ export default function TotalsPage() {
                 Devices Sold ({categoryTotals.devices.totalQuantity} items) -
                 Total: {categoryTotals.devices.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.devices.map((item, index) => (
                   <div
                     key={index}
@@ -2210,7 +2326,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #2196f3",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#2196f3" }}>
                       {item.name}
@@ -2242,7 +2358,7 @@ export default function TotalsPage() {
                 Repairs ({categoryTotals.repairs.totalQuantity} services) -
                 Total: {categoryTotals.repairs.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.repairs.map((item, index) => (
                   <div
                     key={index}
@@ -2250,7 +2366,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #9c27b0",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#9c27b0" }}>
                       {item.name}
@@ -2282,7 +2398,7 @@ export default function TotalsPage() {
                 Puffs Sold ({categoryTotals.puffs.totalQuantity} items) - Total:{" "}
                 {categoryTotals.puffs.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.puffs.map((item, index) => (
                   <div
                     key={index}
@@ -2290,7 +2406,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #e91e63",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#e91e63" }}>
                       {item.name}
@@ -2323,7 +2439,7 @@ export default function TotalsPage() {
                 bottles) - Total:{" "}
                 {categoryTotals.flavourBottles.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.flavourBottles.map((item, index) => (
                   <div
                     key={index}
@@ -2331,7 +2447,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #4caf50",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#4caf50" }}>
                       {item.name}
@@ -2374,7 +2490,7 @@ export default function TotalsPage() {
                 Refills ({categoryTotals.refills.totalQuantity} refills) -
                 Total: {categoryTotals.refills.totalAmount.toFixed(2)} PKR
               </h3>
-              <div style={itemsGridStyles}>
+              <div className="items-grid" style={itemsGridStyles}>
                 {soldItemsSummary.refills.map((item, index) => (
                   <div
                     key={index}
@@ -2382,7 +2498,7 @@ export default function TotalsPage() {
                       ...itemCardStyles,
                       borderTop: "3px solid #ff5722",
                     }}
-                    className="summary-card"
+                    className="summary-card item-card"
                   >
                     <h4 style={{ margin: "0 0 10px 0", color: "#ff5722" }}>
                       {item.name}
@@ -2422,7 +2538,7 @@ export default function TotalsPage() {
         {/* Financial Summary */}
         <div style={sectionStyles}>
           <h2 style={sectionTitleStyle}>Financial Summary</h2>
-          <div style={summaryGridStyles}>
+          <div className="summary-grid" style={summaryGridStyles}>
             <div
               style={{ ...summaryItemStyles, animationDelay: "0.1s" }}
               className="summary-card animate-slide-left"
@@ -2521,7 +2637,7 @@ export default function TotalsPage() {
         {/* Product Revenue Comparison */}
         <div style={sectionStyles}>
           <h2 style={sectionTitleStyle}>Product Revenue Comparison</h2>
-          <div style={comparisonGridStyles}>
+          <div className="comparison-grid" style={comparisonGridStyles}>
             <div
               style={{ ...comparisonItemStyles, animationDelay: "0.1s" }}
               className="comparison-card animate-scale-in"
@@ -2635,107 +2751,7 @@ export default function TotalsPage() {
   );
 }
 
-// ==================== NEW STYLES ====================
-
-const categorySectionStyles: React.CSSProperties = {
-  marginBottom: "30px",
-};
-
-const categoryTitleStyles: React.CSSProperties = {
-  fontSize: "1.25rem",
-  marginBottom: "15px",
-  paddingBottom: "10px",
-  borderBottom: "2px solid #eee",
-  fontWeight: "600",
-};
-
-const itemsGridStyles: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-  gap: "15px",
-  marginTop: "15px",
-};
-
-const itemCardStyles: React.CSSProperties = {
-  backgroundColor: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-  transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-};
-
-const flavorCardStyles: React.CSSProperties = {
-  backgroundColor: "white",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-  transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-};
-
-const itemDetailsStyles: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "5px",
-  fontSize: "0.9rem",
-  color: "#666",
-  marginTop: "10px",
-};
-
-const flavorDetailsStyles: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, 1fr)",
-  gap: "5px",
-  fontSize: "0.9rem",
-  color: "#666",
-  marginTop: "10px",
-};
-
-const backendNoteStyle: React.CSSProperties = {
-  fontSize: "0.75rem",
-  color: "#666",
-  marginTop: "5px",
-  fontStyle: "italic",
-};
-
-const backendSummaryGrid: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: "10px",
-  marginTop: "10px",
-};
-
-const backendSummaryItem: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "8px 0",
-  borderBottom: "1px solid #eee",
-};
-
-const comparisonGridStyles: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-  gap: "20px",
-  marginTop: "20px",
-};
-
-const comparisonItemStyles: React.CSSProperties = {
-  backgroundColor: "white",
-  padding: "25px",
-  borderRadius: "12px",
-  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.08)",
-  opacity: 0,
-  animation: "scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
-};
-
-const comparisonValues: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr",
-  gap: "8px",
-  marginTop: "15px",
-};
-
-// ==================== EXISTING STYLES ====================
+// ==================== RESPONSIVE STYLES ====================
 
 // Authentication Styles
 const authContainerStyles: React.CSSProperties = {
@@ -2744,6 +2760,7 @@ const authContainerStyles: React.CSSProperties = {
   alignItems: "center",
   minHeight: "50vh",
   padding: "20px",
+  width: "100%",
 };
 
 const authBoxStyles: React.CSSProperties = {
@@ -2756,6 +2773,7 @@ const authBoxStyles: React.CSSProperties = {
   width: "100%",
   opacity: 0,
   animation: "fadeIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+  margin: "0 20px",
 };
 
 const inputStyles: React.CSSProperties = {
@@ -2785,6 +2803,8 @@ const containerStyles: React.CSSProperties = {
   maxWidth: "1400px",
   margin: "0 auto",
   padding: "20px",
+  width: "100%",
+  boxSizing: "border-box" as const,
 };
 
 // Header Styles
@@ -2798,12 +2818,14 @@ const headerStyles: React.CSSProperties = {
   boxShadow: "0 8px 25px rgba(0, 0, 0, 0.1)",
   position: "relative",
   overflow: "hidden",
+  width: "100%",
 };
 
 const headerContentStyles: React.CSSProperties = {
   position: "relative",
   padding: "0 20px",
   zIndex: 1,
+  width: "100%",
 };
 
 const headerTitleStyle: React.CSSProperties = {
@@ -2811,6 +2833,7 @@ const headerTitleStyle: React.CSSProperties = {
   fontSize: "1.8rem",
   fontWeight: "700",
   letterSpacing: "0.5px",
+  lineHeight: "1.3",
 };
 
 const headerSubtitleStyle: React.CSSProperties = {
@@ -2818,6 +2841,7 @@ const headerSubtitleStyle: React.CSSProperties = {
   opacity: 0.9,
   fontSize: "1rem",
   fontWeight: "400",
+  lineHeight: "1.4",
 };
 
 // Button Styles
@@ -2831,6 +2855,8 @@ const pdfButtonStyles: React.CSSProperties = {
   fontSize: "1rem",
   fontWeight: "600",
   boxShadow: "0 4px 15px rgba(220, 53, 69, 0.3)",
+  width: "100%",
+  maxWidth: "300px",
 };
 
 const reportsButtonStyles: React.CSSProperties = {
@@ -2846,6 +2872,9 @@ const reportsButtonStyles: React.CSSProperties = {
   boxShadow: "0 4px 15px rgba(23, 162, 184, 0.3)",
   display: "inline-block",
   textAlign: "center",
+  width: "100%",
+  maxWidth: "300px",
+  boxSizing: "border-box" as const,
 };
 
 const buttonContainerStyles: React.CSSProperties = {
@@ -2855,14 +2884,16 @@ const buttonContainerStyles: React.CSSProperties = {
   gap: "20px",
   marginTop: "40px",
   marginBottom: "40px",
+  width: "100%",
 };
 
 // Grid and Section Styles
 const totalsGridStyles: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
   gap: "20px",
   marginBottom: "40px",
+  width: "100%",
 };
 
 const totalItemStyles: React.CSSProperties = {
@@ -2873,6 +2904,7 @@ const totalItemStyles: React.CSSProperties = {
   textAlign: "center",
   position: "relative",
   overflow: "hidden",
+  boxSizing: "border-box" as const,
 };
 
 const valueStyles: React.CSSProperties = {
@@ -2882,6 +2914,8 @@ const valueStyles: React.CSSProperties = {
   marginTop: "10px",
   marginBottom: "5px",
   fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  lineHeight: "1.2",
+  wordBreak: "break-word",
 };
 
 const smallTextStyles: React.CSSProperties = {
@@ -2889,10 +2923,12 @@ const smallTextStyles: React.CSSProperties = {
   color: "#6c757d",
   marginTop: "5px",
   display: "block",
+  lineHeight: "1.3",
 };
 
 const sectionStyles: React.CSSProperties = {
   marginBottom: "40px",
+  width: "100%",
 };
 
 const sectionTitleStyle: React.CSSProperties = {
@@ -2902,6 +2938,7 @@ const sectionTitleStyle: React.CSSProperties = {
   fontWeight: "700",
   borderBottom: "2px solid #4a6fa5",
   paddingBottom: "10px",
+  lineHeight: "1.3",
 };
 
 const subsectionTitleStyle: React.CSSProperties = {
@@ -2909,6 +2946,7 @@ const subsectionTitleStyle: React.CSSProperties = {
   marginBottom: "15px",
   color: "#4a6fa5",
   fontWeight: "600",
+  lineHeight: "1.3",
 };
 
 // Summary Grid Styles
@@ -2917,6 +2955,7 @@ const summaryGridStyles: React.CSSProperties = {
   gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
   gap: "20px",
   marginBottom: "20px",
+  width: "100%",
 };
 
 const summaryItemStyles: React.CSSProperties = {
@@ -2928,6 +2967,7 @@ const summaryItemStyles: React.CSSProperties = {
   borderTop: "4px solid #17a2b8",
   opacity: 0,
   animation: "fadeInUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+  boxSizing: "border-box" as const,
 };
 
 const summaryValueStyles: React.CSSProperties = {
@@ -2936,6 +2976,7 @@ const summaryValueStyles: React.CSSProperties = {
   color: "#17a2b8",
   marginTop: "10px",
   fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  lineHeight: "1.2",
 };
 
 // Payment Breakdown Styles
@@ -2944,6 +2985,8 @@ const paymentBreakdownStyles: React.CSSProperties = {
   padding: "25px",
   borderRadius: "12px",
   boxShadow: "0 8px 25px rgba(0, 0, 0, 0.08)",
+  width: "100%",
+  boxSizing: "border-box" as const,
 };
 
 const paymentMethodItemStyles: React.CSSProperties = {
@@ -2953,4 +2996,246 @@ const paymentMethodItemStyles: React.CSSProperties = {
   borderBottom: "1px solid #eee",
   opacity: 0,
   animation: "fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+  flexWrap: "wrap",
+  gap: "5px",
 };
+
+// ==================== NEW STYLES ====================
+
+const categorySectionStyles: React.CSSProperties = {
+  marginBottom: "30px",
+  width: "100%",
+};
+
+const categoryTitleStyles: React.CSSProperties = {
+  fontSize: "1.25rem",
+  marginBottom: "15px",
+  paddingBottom: "10px",
+  borderBottom: "2px solid #eee",
+  fontWeight: "600",
+  lineHeight: "1.3",
+};
+
+const itemsGridStyles: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+  gap: "15px",
+  marginTop: "15px",
+  width: "100%",
+};
+
+const itemCardStyles: React.CSSProperties = {
+  backgroundColor: "white",
+  padding: "20px",
+  borderRadius: "10px",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+  boxSizing: "border-box" as const,
+};
+
+const flavorCardStyles: React.CSSProperties = {
+  backgroundColor: "white",
+  padding: "20px",
+  borderRadius: "10px",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+  transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+  boxSizing: "border-box" as const,
+};
+
+const itemDetailsStyles: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px",
+  fontSize: "0.9rem",
+  color: "#666",
+  marginTop: "10px",
+};
+
+const flavorDetailsStyles: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, 1fr)",
+  gap: "5px",
+  fontSize: "0.9rem",
+  color: "#666",
+  marginTop: "10px",
+};
+
+const backendNoteStyle: React.CSSProperties = {
+  fontSize: "0.75rem",
+  color: "#666",
+  marginTop: "5px",
+  fontStyle: "italic",
+  lineHeight: "1.3",
+};
+
+const backendSummaryGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "10px",
+  marginTop: "10px",
+  width: "100%",
+};
+
+const backendSummaryItem: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "8px 0",
+  borderBottom: "1px solid #eee",
+  flexWrap: "wrap",
+  gap: "5px",
+};
+
+const comparisonGridStyles: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+  gap: "20px",
+  marginTop: "20px",
+  width: "100%",
+};
+
+const comparisonItemStyles: React.CSSProperties = {
+  backgroundColor: "white",
+  padding: "25px",
+  borderRadius: "12px",
+  boxShadow: "0 8px 25px rgba(0, 0, 0, 0.08)",
+  opacity: 0,
+  animation: "scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+  boxSizing: "border-box" as const,
+};
+
+const comparisonValues: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "8px",
+  marginTop: "15px",
+};
+
+// Media queries for responsive adjustments
+const mediaQueryStyles = `
+  @media (max-width: 1200px) {
+    .container {
+      padding: 15px;
+    }
+    
+    .header-title {
+      font-size: 1.6rem;
+    }
+    
+    .section-title {
+      font-size: 1.3rem;
+    }
+  }
+
+  @media (max-width: 992px) {
+    .totals-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+    
+    .items-grid {
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 10px;
+    }
+    
+    .header-title {
+      font-size: 1.4rem;
+    }
+    
+    .header-subtitle {
+      font-size: 0.9rem;
+    }
+    
+    .section-title {
+      font-size: 1.2rem;
+    }
+    
+    .category-title {
+      font-size: 1.1rem;
+    }
+    
+    .value {
+      font-size: 1.5rem;
+    }
+    
+    .total-card {
+      padding: 20px;
+    }
+    
+    .item-card, .flavor-card {
+      padding: 15px;
+    }
+    
+    .summary-card, .comparison-card {
+      padding: 20px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .header-title {
+      font-size: 1.2rem;
+    }
+    
+    .header-subtitle {
+      font-size: 0.85rem;
+    }
+    
+    .section-title {
+      font-size: 1.1rem;
+    }
+    
+    .category-title {
+      font-size: 1rem;
+    }
+    
+    .value {
+      font-size: 1.3rem;
+    }
+    
+    .total-card {
+      padding: 15px;
+    }
+    
+    .pdf-button, .reports-button {
+      padding: 10px 20px;
+      font-size: 0.9rem;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .header-title {
+      font-size: 1.1rem;
+    }
+    
+    .section-title {
+      font-size: 1rem;
+    }
+    
+    .category-title {
+      font-size: 0.95rem;
+    }
+    
+    .value {
+      font-size: 1.2rem;
+    }
+    
+    h3 {
+      font-size: 0.9rem;
+    }
+    
+    h4 {
+      font-size: 0.85rem;
+    }
+  }
+`;
+
+// Add the media queries to the global styles
+if (typeof document !== "undefined") {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = mediaQueryStyles;
+  document.head.appendChild(styleSheet);
+}

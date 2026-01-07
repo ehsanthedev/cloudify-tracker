@@ -1,14 +1,14 @@
-import './globals.css'
-import Navbar from '../components/Navbar'
-import { ReactNode } from 'react'
+import "./globals.css";
+import Navbar from "../components/Navbar";
+import { ReactNode } from "react";
 
 export const metadata = {
-  title: 'Cloudify Vaping Lounge',
-  description: 'Business Management System',
-}
+  title: "SMOKE & SIN'S",
+  description: "Business Management System",
+};
 
 interface RootLayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
@@ -21,5 +21,5 @@ export default function RootLayout({ children }: RootLayoutProps) {
         </main>
       </body>
     </html>
-  )
+  );
 }
